@@ -1,39 +1,44 @@
 
-import type { JourneyItem } from '@/lib/data';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import type { Experience } from '@prisma/client'; // Assuming Experience model from Prisma
+import { prisma } from '@/lib/prisma';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, CalendarDays } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, PlusCircle } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import Link from 'next/link';
 
-function getApiBaseUrl(): string {
-  const port = process.env.PORT || '9002';
-  if (process.env.NEXT_PUBLIC_APP_URL?.includes('localhost')) {
-    return `http://127.0.0.1:${port}`;
-  }
-  return process.env.NEXT_PUBLIC_APP_URL || `http://127.0.0.1:${port}`;
-}
-
-async function getExperience(): Promise<JourneyItem[]> {
-  const baseUrl = getApiBaseUrl();
-  const apiPath = `${baseUrl}/api/experience`;
-  
-  const res = await fetch(apiPath, { cache: 'no-store' });
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error(`Failed to fetch experience from ${apiPath}:`, res.status, errorText);
-    throw new Error(`Failed to fetch experience from ${apiPath}. Status: ${res.status}, Response: ${errorText}`);
-  }
+async function getExperience(): Promise<Experience[]> {
   try {
-    const jsonData = await res.json();
-    return jsonData;
+    const experiences = await prisma.experience.findMany({
+      orderBy: {
+        // Assuming 'date' is a string. For proper sorting, consider a DateTime field.
+        // Or sort by 'createdAt' or an explicit 'order' field.
+        createdAt: 'desc',
+      },
+    });
+    return experiences;
   } catch (e: any) {
-    console.error(`Failed to parse JSON from ${apiPath}:`, e.message);
-    const responseText = await fetch(apiPath, { cache: 'no-store' }).then(r => r.text()).catch(() => "Could not retrieve error body.");
-    throw new Error(`Failed to parse JSON from ${apiPath}. Error: ${e.message}. Response body: ${responseText}`);
+    console.error(`Failed to fetch experience data from DB:`, e.message);
+    throw new Error(`Failed to fetch experience data. Error: ${e.message}`);
   }
 }
 
 export default async function AdminExperiencePage() {
-  let experiences: JourneyItem[] = [];
+  let experiences: Experience[] = [];
   let error: string | null = null;
 
   try {
@@ -43,60 +48,95 @@ export default async function AdminExperiencePage() {
   }
 
   if (error) {
-    const apiPathForErrorMessage = `${getApiBaseUrl()}/api/experience`;
     return (
       <div className="text-destructive-foreground bg-destructive p-4 rounded-md">
         <h2 className="text-xl font-semibold">Error Fetching Experience Data</h2>
         <p>{error}</p>
-        <p>Please ensure the API endpoint at <code className="text-sm bg-destructive-foreground/20 px-1 rounded">{apiPathForErrorMessage}</code> is running and accessible, and your database is correctly configured and seeded.</p>
-      </div>
-    );
-  }
-
-  if (!experiences || experiences.length === 0) {
-    return (
-      <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-primary">Manage Experience</h1>
-        </div>
-        <p className="text-lg text-muted-foreground">No experience entries found. CRUD operations and the ability to add entries will be implemented soon.</p>
+        <p>Please ensure your database is correctly configured and accessible.</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-primary">Manage Experience</h1>
+        {/* <Button asChild disabled> // Enable when 'new experience' page is ready
+          <Link href="/admin/experience/new">
+            <PlusCircle className="mr-2 h-5 w-5" /> Add New Experience
+          </Link>
+        </Button> */}
       </div>
-      <p className="mb-6 text-muted-foreground">Currently viewing {experiences.length} experience(s). Full CRUD functionality will be added soon.</p>
-      <div className="space-y-6">
-        {experiences.map((item) => (
-          <Card key={item.id}>
-            <CardHeader>
-              <CardTitle>{item.title}</CardTitle>
-              {item.company && (
-                <CardDescription className="flex items-center text-base">
-                  <Briefcase className="mr-2 h-4 w-4 text-muted-foreground" />{item.company}
-                </CardDescription>
-              )}
-              <div className="text-sm text-muted-foreground flex items-center pt-1">
-                <CalendarDays className="mr-2 h-4 w-4" /> {item.date}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-foreground/90 mb-3">{item.description}</p>
-              {item.tags && item.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {item.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary">{tag}</Badge>
-                  ))}
-                </div>
-              )}
+
+      {experiences.length === 0 && !error && (
+         <Card className="mt-4">
+          <CardContent className="pt-6">
+            <p className="text-lg text-muted-foreground">No experience entries found. CRUD operations will be implemented soon.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {experiences.length > 0 && (
+        <Card>
+            <CardContent className="p-0">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead className="w-[250px]">Title</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Tags</TableHead>
+                    <TableHead className="text-right w-[100px]">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {experiences.map((item) => (
+                    <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.title}</TableCell>
+                        <TableCell>{item.company}</TableCell>
+                        <TableCell className="text-sm">{item.date}</TableCell>
+                        <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                            {item.tags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                            ))}
+                        </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuItem disabled>
+                                <Edit className="mr-2 h-4 w-4" />
+                                <span>Edit</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                            </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
             </CardContent>
-          </Card>
-        ))}
-      </div>
+            {experiences.length > 0 && (
+            <CardFooter className="justify-between items-center py-4 px-6 border-t">
+                <p className="text-sm text-muted-foreground">
+                    Total {experiences.length} experience(s).
+                </p>
+                {/* Placeholder for pagination */}
+            </CardFooter>
+            )}
+        </Card>
+      )}
     </div>
   );
 }

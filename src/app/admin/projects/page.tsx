@@ -1,13 +1,26 @@
 
 import type { Project } from '@prisma/client';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
-import { prisma } from '@/lib/prisma'; // Import prisma client
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from '@/components/ui/badge';
+import { MoreHorizontal, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-// Function to fetch projects directly using Prisma
 async function getProjects(): Promise<Project[]> {
   try {
     const projects = await prisma.project.findMany({
@@ -43,8 +56,8 @@ export default async function AdminProjectsPage() {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-primary">Manage Projects</h1>
         <Button asChild>
           <Link href="/admin/projects/new">
@@ -54,56 +67,78 @@ export default async function AdminProjectsPage() {
       </div>
 
       {projects.length === 0 && !error && (
-        <p className="text-lg text-muted-foreground">No projects found. Click "Add New Project" to get started.</p>
+        <Card className="mt-4">
+          <CardContent className="pt-6">
+            <p className="text-lg text-muted-foreground">No projects found. Click "Add New Project" to get started.</p>
+          </CardContent>
+        </Card>
       )}
 
       {projects.length > 0 && (
-         <p className="mb-6 text-muted-foreground">Currently viewing {projects.length} project(s).</p>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((project) => (
-          <Card key={project.id} className="flex flex-col">
-            <CardHeader>
-              <CardTitle>{project.title}</CardTitle>
-              <CardDescription>{project.slug}</CardDescription>
-              <CardDescription className="text-sm pt-1">
-                {project.shortDescription.substring(0, 100)}...
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow">
-              <p className="text-xs text-muted-foreground mb-2">
-                Dates: {project.startDate} {project.endDate ? `- ${project.endDate}` : '- Present'}
-              </p>
-              <div className="mb-3">
-                <h4 className="text-xs font-semibold text-muted-foreground mb-1">Technologies:</h4>
-                <div className="flex flex-wrap gap-1">
-                  {project.technologies.map((tech) => (
-                    <Badge key={tech} variant="secondary" className="text-xs">{tech}</Badge>
-                  ))}
-                </div>
-              </div>
-               {project.imageUrl && (
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Image: <a href={project.imageUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate block max-w-full">{project.imageUrl}</a>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="border-t pt-4 flex justify-end gap-2">
-              <Button variant="outline" size="sm" asChild disabled>
-                <Link href={`/admin/projects/${project.id}/edit`}> {/* Edit link, disabled for now */}
-                  <Edit className="mr-1 h-4 w-4" /> Edit
-                </Link>
-              </Button>
-              <Button variant="destructive" size="sm" disabled> {/* Delete button, disabled for now */}
-                <Trash2 className="mr-1 h-4 w-4" /> Delete
-              </Button>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[250px]">Title</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Technologies</TableHead>
+                  <TableHead className="text-right w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {projects.map((project) => (
+                  <TableRow key={project.id}>
+                    <TableCell className="font-medium">{project.title}</TableCell>
+                    <TableCell>{project.slug}</TableCell>
+                    <TableCell className="text-sm">
+                      {project.startDate} {project.endDate ? `- ${project.endDate}` : '- Present'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {project.technologies.map((tech) => (
+                          <Badge key={tech} variant="secondary" className="text-xs">{tech}</Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem disabled>
+                            <Edit className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+           {projects.length > 0 && (
+            <CardFooter className="justify-between items-center py-4 px-6 border-t">
+                <p className="text-sm text-muted-foreground">
+                    Total {projects.length} project(s).
+                </p>
+                {/* Placeholder for pagination */}
             </CardFooter>
-          </Card>
-        ))}
-      </div>
+            )}
+        </Card>
+      )}
     </div>
   );
 }
 
-export const dynamic = 'force-dynamic'; // Ensures the page is dynamically rendered
+export const dynamic = 'force-dynamic';
