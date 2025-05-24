@@ -25,7 +25,12 @@ async function getExperienceDirectly(): Promise<Experience[]> {
   try {
     const experiences = await prisma.experience.findMany({
       orderBy: {
-        createdAt: 'desc', // Or another field if you prefer, e.g., a custom 'order' or 'startDate'
+        // Consider adding a specific field for ordering, e.g., a startDate field or a custom 'order' field.
+        // For now, sorting by createdAt might be newest first.
+        // If 'date' field is consistently formatted (e.g. YYYY-MM), you might sort by it descending.
+        // For example: orderBy: { date: 'desc' } if 'date' represents start date.
+        // For simplicity, let's assume createdAt for now.
+        createdAt: 'desc',
       },
     });
     return experiences;
@@ -59,17 +64,17 @@ export default async function AdminExperiencePage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-primary">Manage Experience</h1>
-        {/* <Button asChild disabled> // Enable when 'new experience' page is ready
+        <Button asChild>
           <Link href="/admin/experience/new">
             <PlusCircle className="mr-2 h-5 w-5" /> Add New Experience
           </Link>
-        </Button> */}
+        </Button>
       </div>
 
       {experiences.length === 0 && !error && (
          <Card className="mt-4">
           <CardContent className="pt-6">
-            <p className="text-lg text-muted-foreground">No experience entries found. CRUD operations will be implemented soon.</p>
+            <p className="text-lg text-muted-foreground">No experience entries found. Click "Add New Experience" to get started.</p>
           </CardContent>
         </Card>
       )}
@@ -91,7 +96,7 @@ export default async function AdminExperiencePage() {
                     {experiences.map((item) => (
                     <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.title}</TableCell>
-                        <TableCell>{item.company}</TableCell>
+                        <TableCell>{item.company || 'N/A'}</TableCell>
                         <TableCell className="text-sm">{item.date}</TableCell>
                         <TableCell>
                         <div className="flex flex-wrap gap-1">
