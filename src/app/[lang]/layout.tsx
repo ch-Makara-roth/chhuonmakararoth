@@ -4,26 +4,20 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import TranslationsProvider from '@/components/layout/TranslationsProvider';
 import initTranslations from '@/app/i18n';
 import { languages, defaultNS, defaultLocale } from '@/app/i18n/settings';
-import { Nokora, Roboto } from 'next/font/google';
+import { Nokora } from 'next/font/google';
+// Roboto is applied globally via src/app/layout.tsx and tailwind.config.ts
+// We only need Nokora here for specific Khmer language styling.
 import './../globals.css'; // Adjusted path to import from parent
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { Toaster } from "@/components/ui/toaster";
-import NextAuthProvider from '@/components/layout/NextAuthProvider';
-
-// Setup Roboto font (default sans-serif)
-const roboto = Roboto({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '700', '900'],
-  variable: '--font-roboto',
-  display: 'swap',
-});
+// NextAuthProvider is in the global root layout
 
 // Setup Nokora font (for Khmer)
 const nokoraFont = Nokora({
   subsets: ['khmer'],
   weight: ['400', '700', '900'],
   display: 'swap',
-  variable: '--font-nokora',
+  // No need to set variable if using .className directly
 });
 
 export async function generateStaticParams() {
@@ -35,7 +29,7 @@ const APP_DESCRIPTION = 'Personal portfolio of Chhuon MakaraRoth, showcasing pro
 const DEFAULT_OG_IMAGE_URL = "https://placehold.co/1200x630.png?text=My+Portfolio"; // Replace this
 
 export async function generateMetadata({ params }: { params: { lang: string } }): Promise<Metadata> {
-  const lang = params.lang; // Access lang from params
+  const lang = params.lang;
   const { t } = await initTranslations(lang, [defaultNS]);
   const siteName = t('header.appName') || APP_DEFAULT_TITLE;
   const title = `${siteName} - Portfolio`;
@@ -77,11 +71,6 @@ export async function generateMetadata({ params }: { params: { lang: string } })
       images: [DEFAULT_OG_IMAGE_URL],
       // creator: '@yourTwitterHandle', // Optional: Add your Twitter handle
     },
-    // icons: { // Optional: Add favicon links if you have them in /public
-    //   icon: '/favicon.ico',
-    //   shortcut: '/favicon-16x16.png',
-    //   apple: '/apple-touch-icon.png',
-    // },
   };
 }
 
@@ -89,15 +78,16 @@ const i18nNamespaces = [defaultNS];
 
 export default async function RootLayout({
   children,
-  params, // Access params object directly
+  params,
 }: Readonly<{
   children: React.ReactNode;
   params: { lang: string };
 }>) {
-  const lang = params.lang; // Extract lang from params
+  const lang = params.lang;
   const { resources } = await initTranslations(lang, i18nNamespaces);
 
-  const fontClassName = lang === 'km' ? nokoraFont.className : roboto.className;
+  // Conditional font application logic
+  const fontClassName = lang === 'km' ? nokoraFont.className : '';
 
   // This layout is specific to [lang] routes and should NOT contain <html> or <body>
   // Those are provided by the global src/app/layout.tsx

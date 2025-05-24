@@ -34,7 +34,7 @@ export default function RootLayout({
     // Apply Roboto and GeistMono font variables to the html tag
     <html lang="en" suppressHydrationWarning className={`${roboto.variable} ${GeistMono.variable}`}>
       {/* font-sans in body will now use --font-roboto via Tailwind config */}
-      <body className={`antialiased font-sans bg-background text-foreground`}>
+      <body className={`antialiased font-sans bg-background text-foreground`} suppressHydrationWarning={true}>
         <NextAuthProvider> {/* Wrap ThemeProvider with NextAuthProvider */}
           <ThemeProvider
               attribute="class"
