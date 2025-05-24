@@ -2,25 +2,24 @@
 'use client';
 import Link, { type LinkProps } from 'next/link';
 import { ThemeSwitcher } from './ThemeSwitcher';
-import { CodeXml, Menu } from 'lucide-react'; // Added Menu icon
+import { CodeXml, Menu } from 'lucide-react'; 
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from './LanguageSwitcher';
 import { defaultLocale } from '@/app/i18n/settings';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation'; // Not strictly needed if Link handles it
 import type React from 'react';
-import { useState } from 'react'; // Added useState
+import { useState } from 'react'; 
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
-  // SheetClose, // Not explicitly needed if handleSmoothScroll closes it
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { t, i18n } = useTranslation('common');
   const currentLang = i18n.language;
-  const [isSheetOpen, setIsSheetOpen] = useState(false); // State for mobile menu
+  const [isSheetOpen, setIsSheetOpen] = useState(false); 
 
   const getLocalizedPath = (path: string) => {
     if (path.startsWith('/#')) {
@@ -37,9 +36,18 @@ export function Header() {
     const fullUrl = new URL(hrefAttributeValue, window.location.origin);
     const targetId = fullUrl.hash.substring(1); 
 
-    const targetPathForURLUpdate = currentLang === defaultLocale ? 
-      (fullUrl.hash || '/') : 
-      (`/${currentLang}` + (fullUrl.hash || (fullUrl.pathname === `/${currentLang}` ? '' : fullUrl.pathname.replace(`/${currentLang}`, '')) ));
+    // Construct the path as it would appear in the URL bar
+    let targetPathForURLUpdate;
+    if (fullUrl.pathname === '/' && fullUrl.hash) { // Root path with a hash
+      targetPathForURLUpdate = currentLang === defaultLocale ? fullUrl.hash : `/${currentLang}${fullUrl.hash}`;
+    } else if (fullUrl.pathname === '/') { // Root path without a hash
+      targetPathForURLUpdate = currentLang === defaultLocale ? '/' : `/${currentLang}`;
+    } else { // Non-root paths
+      targetPathForURLUpdate = currentLang === defaultLocale ? 
+        `${fullUrl.pathname}${fullUrl.hash}` : 
+        `/${currentLang}${fullUrl.pathname.replace(`/${currentLang}`, '')}${fullUrl.hash}`;
+    }
+
 
     if (targetId) {
       const element = document.getElementById(targetId);
@@ -47,11 +55,12 @@ export function Header() {
         element.scrollIntoView({
           behavior: 'smooth',
         });
+         // Only push state if the URL is actually changing
         if (window.location.pathname + window.location.hash !== targetPathForURLUpdate) {
             window.history.pushState({}, '', targetPathForURLUpdate);
         }
       }
-    } else if (hrefAttributeValue === getLocalizedPath('/')) {
+    } else if (hrefAttributeValue === getLocalizedPath('/')) { // Scrolling to top for home/logo link
       window.scrollTo({
         top: 0,
         behavior: 'smooth',
@@ -61,7 +70,6 @@ export function Header() {
        }
     }
     
-    // Close sheet if it's open
     if (isSheetOpen) {
       setIsSheetOpen(false);
     }
@@ -91,7 +99,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 max-w-screen-2xl items-center px-4 md:px-6">
+      <div className="container flex h-14 max-w-screen-2xl items-center justify-between px-4 md:px-6"> {/* Added justify-between */}
         <NavLink href={appNamePath} className="mr-6 flex items-center space-x-2">
           <CodeXml className="h-6 w-6 text-primary" />
           <span className="font-bold sm:inline-block">
@@ -99,7 +107,6 @@ export function Header() {
           </span>
         </NavLink>
         
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex flex-1 items-center space-x-4 sm:space-x-6 text-sm font-medium">
           <NavLink href={journeyPath} className="text-foreground/60 transition-colors hover:text-foreground/80">
             {t('header.journey')}
@@ -115,12 +122,10 @@ export function Header() {
           </NavLink>
         </nav>
 
-        {/* Right side items: Language Switcher, Theme Switcher, Mobile Menu Trigger */}
         <div className="flex items-center space-x-2">
           <LanguageSwitcher />
           <ThemeSwitcher />
 
-          {/* Mobile Menu Trigger */}
           <div className="md:hidden">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
