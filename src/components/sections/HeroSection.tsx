@@ -20,19 +20,22 @@ export default function HeroSection() {
     const nameTypingTimer = setTimeout(() => {
       let charIndex = 0;
       const intervalId = setInterval(() => {
-        setTypedName((prev) => prev + FULL_NAME[charIndex]);
-        charIndex++;
-        if (charIndex === FULL_NAME.length) {
+        // Check if there are more characters to type
+        if (charIndex < FULL_NAME.length) {
+          setTypedName((prev) => prev + FULL_NAME[charIndex]);
+          charIndex++;
+        } else {
+          // All characters typed
           clearInterval(intervalId);
           setNameTypingComplete(true);
         }
       }, TYPING_SPEED_MS);
 
-      return () => clearInterval(intervalId);
+      return () => clearInterval(intervalId); // Cleanup for interval
     }, START_TYPING_DELAY_MS);
 
-    return () => clearTimeout(nameTypingTimer);
-  }, []);
+    return () => clearTimeout(nameTypingTimer); // Cleanup for timeout
+  }, []); // Empty dependency array ensures this runs once on mount
 
   useEffect(() => {
     if (nameTypingComplete) {
