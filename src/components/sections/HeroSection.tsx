@@ -1,25 +1,29 @@
-
 "use client";
 
 import { Button } from '@/components/ui/button';
 import { ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useParams } from 'next/navigation';
 
-const FULL_NAME = "Chhuon MakaraRoth";
 const TYPING_SPEED_MS = 100;
 const ERASING_SPEED_MS = 50;
-const PAUSE_AFTER_TYPING_MS = 2000; // Pause after typing full name
-const PAUSE_AFTER_ERASING_MS = 500;  // Pause after erasing before re-typing
-const START_TYPING_DELAY_MS = 1000; // Delay after "Hello, I'm" animates in
+const PAUSE_AFTER_TYPING_MS = 2000;
+const PAUSE_AFTER_ERASING_MS = 500;
+const START_TYPING_DELAY_MS = 1000;
 
 export default function HeroSection() {
+  const params = useParams();
+  const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const { t } = useTranslation('common');
+  const FULL_NAME = t('hero.name');
+
   const [typedName, setTypedName] = useState("");
   const [showBlinkingCursor, setShowBlinkingCursor] = useState(false);
   const [showSubContent, setShowSubContent] = useState(false);
 
   useEffect(() => {
-    // This timeout ensures "Hello, I'm" animation has a chance to start/complete.
     const initialDelayTimeout = setTimeout(() => {
       setShowBlinkingCursor(true);
       let index = 0;
@@ -37,19 +41,18 @@ export default function HeroSection() {
               index++;
               animationTimeoutId = setTimeout(runAnimationStep, TYPING_SPEED_MS);
             } else {
-              // Finished typing
-              if (!showSubContent) { // Show sub-content only once after the first full type-out
+              if (!showSubContent) {
                 setShowSubContent(true);
               }
               phase = 'pausing_after_typing';
-              setShowBlinkingCursor(false); // Hide cursor during this pause
+              setShowBlinkingCursor(false);
               animationTimeoutId = setTimeout(runAnimationStep, PAUSE_AFTER_TYPING_MS);
             }
             break;
           case 'pausing_after_typing':
             phase = 'erasing';
-            setShowBlinkingCursor(true); // Show cursor for erasing
-            animationTimeoutId = setTimeout(runAnimationStep, 0); // Start erasing immediately after pause
+            setShowBlinkingCursor(true);
+            animationTimeoutId = setTimeout(runAnimationStep, 0);
             break;
           case 'erasing':
             setShowBlinkingCursor(true);
@@ -58,33 +61,31 @@ export default function HeroSection() {
               setTypedName(currentDisplayedName);
               animationTimeoutId = setTimeout(runAnimationStep, ERASING_SPEED_MS);
             } else {
-              // Finished erasing
               phase = 'pausing_after_erasing';
-              // Cursor is already true from start of erasing or will be set by typing
               animationTimeoutId = setTimeout(runAnimationStep, PAUSE_AFTER_ERASING_MS);
             }
             break;
           case 'pausing_after_erasing':
             phase = 'typing';
-            index = 0; // Reset for typing
-            currentDisplayedName = ""; // Reset name for re-typing
+            index = 0;
+            currentDisplayedName = "";
             setShowBlinkingCursor(true);
-            animationTimeoutId = setTimeout(runAnimationStep, 0); // Start typing immediately after pause
+            animationTimeoutId = setTimeout(runAnimationStep, 0);
             break;
         }
       };
 
-      runAnimationStep(); // Start the animation cycle
+      runAnimationStep();
 
-      return () => { // Cleanup function for the main useEffect
+      return () => {
         if (animationTimeoutId) clearTimeout(animationTimeoutId);
       };
     }, START_TYPING_DELAY_MS);
 
-    return () => { // Cleanup for the initialDelayTimeout
+    return () => {
         clearTimeout(initialDelayTimeout);
     };
-  }, []); // Empty dependency array to run once on mount
+  }, [FULL_NAME, showSubContent]); // Added FULL_NAME and showSubContent to dependencies
 
 
   return (
@@ -92,17 +93,16 @@ export default function HeroSection() {
       <div className="container mx-auto px-4 md:px-6 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
           <span className="block animate-in fade-in slide-in-from-bottom-8 zoom-in-95 spin-in-[-1deg] duration-700 delay-300">
-            Hello, I&apos;m
+            {t('hero.greeting')}
           </span>
           <span className="block text-primary mt-2 sm:mt-4 min-h-[1.2em] sm:min-h-[1.5em]">
             {typedName}
             {showBlinkingCursor && <span className="blinking-cursor">|</span>}
           </span>
         </h1>
-        {/* Fallback for non-JS or before hydration for SEO */}
         <noscript>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            <span className="block">Hello, I&apos;m</span>
+            <span className="block">{t('hero.greeting')}</span>
             <span className="block text-primary mt-2 sm:mt-4">{FULL_NAME}</span>
           </h1>
         </noscript>
@@ -110,14 +110,14 @@ export default function HeroSection() {
         {showSubContent && (
           <>
             <p className="mt-6 max-w-md mx-auto text-lg text-foreground/80 sm:text-xl md:mt-8 md:max-w-2xl animate-in fade-in slide-in-from-bottom-12 duration-700">
-              A passionate Full-Stack Developer crafting modern, responsive, and user-centric web applications.
+              {t('hero.tagline')}
             </p>
             <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center items-center gap-4 animate-in fade-in slide-in-from-bottom-14 duration-700">
               <Button asChild size="lg" className="shadow-lg hover:shadow-primary/50 transition-shadow">
-                <Link href="/#projects">View My Work</Link>
+                <Link href={`/${lang}/#projects`}>{t('hero.viewWork')}</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="shadow-sm hover:shadow-accent/30 transition-shadow">
-                <Link href="/#journey">My Journey <ArrowDown className="ml-2 h-4 w-4" /></Link>
+                <Link href={`/${lang}/#journey`}>{t('hero.myJourney')} <ArrowDown className="ml-2 h-4 w-4" /></Link>
               </Button>
             </div>
           </>

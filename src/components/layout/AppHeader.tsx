@@ -1,12 +1,19 @@
-
 "use client";
-import { usePathname } from 'next/navigation';
-import { Header } from '@/components/layout/Header'; // The original Header
+import { usePathname, useParams } from 'next/navigation';
+import { Header } from '@/components/layout/Header';
 
 export function AppHeader() {
   const pathname = usePathname();
-  // Do not render the main public Header for admin routes
-  if (pathname.startsWith('/admin')) {
+  const params = useParams(); // lang is in params
+
+  // Pathname will be like /en/admin or /km/admin
+  // We need to check the segment after the language code
+  const pathSegments = pathname.split('/'); // ['', 'en', 'admin', ...] or ['', 'en']
+  
+  // Check if 'admin' is the segment after the language code
+  const isAdminRoute = pathSegments.length > 2 && pathSegments[2] === 'admin';
+
+  if (isAdminRoute) {
     return null;
   }
   return <Header />;

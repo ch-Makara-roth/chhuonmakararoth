@@ -1,0 +1,22 @@
+{
+  "header": {
+    "journey": "Journey",
+    "skills": "Skills",
+    "projects": "Projects",
+    "contributions": "Contributions",
+    "appName": "Chhuon MakaraRoth Dev"
+  },
+  "hero": {
+    "greeting": "Hello, I'm",
+    "name": "Chhuon MakaraRoth",
+    "tagline": "A passionate Full-Stack Developer crafting modern, responsive, and user-centric web applications.",
+    "viewWork": "View My Work",
+    "myJourney": "My Journey"
+  },
+  "projectDetails": {
+    "backToProjects": "Back to Projects"
+  },
+  "languageSwitcher": {
+    "changeLanguage": "Change language"
+  }
+}

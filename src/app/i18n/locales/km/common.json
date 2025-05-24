@@ -1,0 +1,22 @@
+{
+  "header": {
+    "journey": "ដំណើរ",
+    "skills": "ជំនាញ",
+    "projects": "គម្រោង",
+    "contributions": "ការរួមចំណែក",
+    "appName": "ឈួន មករារតន៍ អ្នកអភិវឌ្ឍន៍"
+  },
+  "hero": {
+    "greeting": "សួស្តី ខ្ញុំឈ្មោះ",
+    "name": "ឈួន មករារតន៍",
+    "tagline": "អ្នកអភិវឌ្ឍន៍ Full-Stack ប្រកបដោយឆន្ទៈ បង្កើតកម្មវិធីគេហទំព័រទំនើប ឆ្លើយតប និងផ្ដោតលើអ្នកប្រើប្រាស់។",
+    "viewWork": "មើលស្នាដៃខ្ញុំ",
+    "myJourney": "ដំណើររបស់ខ្ញុំ"
+  },
+  "projectDetails": {
+    "backToProjects": "ត្រឡប់ទៅគម្រោង"
+  },
+  "languageSwitcher": {
+    "changeLanguage": "ផ្លាស់ប្តូរភាសា"
+  }
+}

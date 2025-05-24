@@ -8,9 +8,10 @@ import { ArrowRight, Github, ExternalLink } from 'lucide-react';
 
 interface ProjectCardProps {
   project: Project;
+  lang: string; 
 }
 
-export default function ProjectCard({ project }: ProjectCardProps) {
+export default function ProjectCard({ project, lang }: ProjectCardProps) {
   return (
     <Card className="flex flex-col h-full overflow-hidden shadow-lg hover:shadow-accent/20 transition-all duration-300 transform hover:scale-[1.02]">
       <CardHeader className="p-0">
@@ -39,7 +40,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
       </div>
       <CardFooter className="p-6 pt-0 flex flex-col sm:flex-row sm:justify-between gap-3 items-stretch sm:items-center">
         <Button asChild variant="default" className="w-full sm:w-auto">
-          <Link href={`/projects/${project.slug}`}>
+          <Link href={`/${lang}/projects/${project.slug}`}>
             View Details <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
