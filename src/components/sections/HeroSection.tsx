@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'next/navigation';
+import { defaultLocale } from '@/app/i18n/settings';
 
 const TYPING_SPEED_MS = 100;
 const ERASING_SPEED_MS = 50;
@@ -15,7 +17,7 @@ const START_TYPING_DELAY_MS = 1000;
 
 export default function HeroSection() {
   const params = useParams();
-  const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const lang = typeof params.lang === 'string' ? params.lang : defaultLocale;
   const { t } = useTranslation('common');
   const FULL_NAME = t('hero.name');
 
@@ -85,8 +87,16 @@ export default function HeroSection() {
     return () => {
         clearTimeout(initialDelayTimeout);
     };
-  }, [FULL_NAME, showSubContent]); // Added FULL_NAME and showSubContent to dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [FULL_NAME, showSubContent]); 
 
+  const getLocalizedPath = (path: string) => {
+    if (path.startsWith('#')) { // Handle hash links
+        return lang === defaultLocale ? path : `/${lang}${path}`;
+    }
+    const normalizedPath = path === '/' ? '' : path;
+    return lang === defaultLocale ? (normalizedPath || '/') : `/${lang}${normalizedPath || ''}`;
+  };
 
   return (
     <section id="hero" className="w-full h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-br from-background to-secondary/30 relative overflow-hidden">
@@ -114,10 +124,10 @@ export default function HeroSection() {
             </p>
             <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center items-center gap-4 animate-in fade-in slide-in-from-bottom-14 duration-700">
               <Button asChild size="lg" className="shadow-lg hover:shadow-primary/50 transition-shadow">
-                <Link href={`/${lang}/#projects`}>{t('hero.viewWork')}</Link>
+                <Link href={getLocalizedPath('/#projects')}>{t('hero.viewWork')}</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="shadow-sm hover:shadow-accent/30 transition-shadow">
-                <Link href={`/${lang}/#journey`}>{t('hero.myJourney')} <ArrowDown className="ml-2 h-4 w-4" /></Link>
+                <Link href={getLocalizedPath('/#journey')}>{t('hero.myJourney')} <ArrowDown className="ml-2 h-4 w-4" /></Link>
               </Button>
             </div>
           </>

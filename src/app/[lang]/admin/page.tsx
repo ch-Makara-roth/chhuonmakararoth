@@ -1,13 +1,16 @@
+
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { GanttChartSquare, Briefcase, Lightbulb } from 'lucide-react';
+import { defaultLocale } from '@/app/i18n/settings';
 
 interface AdminDashboardPageProps {
   params: { lang: string };
 }
 
 export default function AdminDashboardPage({ params: { lang } }: AdminDashboardPageProps) {
+  const basePath = lang === defaultLocale ? '' : `/${lang}`;
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8 text-primary">Welcome to the Admin Dashboard</h1>
@@ -26,7 +29,7 @@ export default function AdminDashboardPage({ params: { lang } }: AdminDashboardP
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href={`/${lang}/admin/projects`}>Go to Projects</Link>
+              <Link href={`${basePath}/admin/projects`}>Go to Projects</Link>
             </Button>
           </CardContent>
         </Card>
@@ -40,7 +43,7 @@ export default function AdminDashboardPage({ params: { lang } }: AdminDashboardP
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href={`/${lang}/admin/experience`}>Go to Experience</Link>
+              <Link href={`${basePath}/admin/experience`}>Go to Experience</Link>
             </Button>
           </CardContent>
         </Card>
@@ -54,7 +57,7 @@ export default function AdminDashboardPage({ params: { lang } }: AdminDashboardP
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href={`/${lang}/admin/skills`}>Go to Skills</Link>
+              <Link href={`${basePath}/admin/skills`}>Go to Skills</Link>
             </Button>
           </CardContent>
         </Card>

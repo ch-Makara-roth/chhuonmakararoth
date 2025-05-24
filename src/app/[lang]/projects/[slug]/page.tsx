@@ -1,3 +1,4 @@
+
 import { projectsData, type Project } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, CalendarDays, ExternalLink, Github, ListChecks } from 'lucide-react';
 import Link from 'next/link';
-import { languages, defaultNS } from '@/app/i18n/settings';
+import { languages, defaultNS, defaultLocale } from '@/app/i18n/settings';
 import initTranslations from '@/app/i18n';
 
 async function getProject(slug: string): Promise<Project | undefined> {
@@ -49,11 +50,13 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     notFound();
   }
 
+  const backToProjectsPath = lang === defaultLocale ? '/#projects' : `/${lang}/#projects`;
+
   return (
     <div className="min-h-screen py-12 md:py-20 lg:py-28 bg-background">
       <div className="container mx-auto px-4 md:px-6 max-w-5xl">
         <Button asChild variant="outline" className="mb-8 group">
-          <Link href={`/${lang}/#projects`}>
+          <Link href={backToProjectsPath}>
             <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             {t('projectDetails.backToProjects')}
           </Link>

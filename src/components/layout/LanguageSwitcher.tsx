@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import { languages } from '@/app/i18n/settings';
+import { languages, defaultLocale } from '@/app/i18n/settings';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,31 +15,45 @@ import { useTranslation } from 'react-i18next';
 
 export default function LanguageSwitcher() {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname(); // This is the path as seen in the browser
   const params = useParams();
-  const currentLang = typeof params.lang === 'string' ? params.lang : 'en';
+  // currentLang here refers to the lang segment from the file system due to rewrite
+  // For default locale, params.lang might be 'en' even if URL is `/about`
+  // For non-default, params.lang will be e.g. 'km' and URL is `/km/about`
+  const currentFsLang = typeof params.lang === 'string' ? params.lang : defaultLocale;
   const { t } = useTranslation('common');
 
-
   const changeLanguage = (newLocale: string) => {
-    // Remove current locale from pathname
-    let newPath = pathname;
-    if (pathname.startsWith(`/${currentLang}`)) {
-      newPath = pathname.substring(`/${currentLang}`.length);
-      if (newPath === "") newPath = "/"; // Handle root case
+    let pathWithoutLocale = pathname;
+
+    // If the current path in browser includes a non-default locale prefix, remove it
+    // Example: current browser path /km/about, currentFsLang is 'km'
+    if (currentFsLang !== defaultLocale && pathname.startsWith(`/${currentFsLang}`)) {
+      pathWithoutLocale = pathname.substring(`/${currentFsLang}`.length);
+    }
+    // If current browser path is /about (meaning currentFsLang is 'en'), pathWithoutLocale is already /about
+
+    if (pathWithoutLocale === "") pathWithoutLocale = "/"; // Ensure root is represented by /
+
+    let newPath;
+    if (newLocale === defaultLocale) {
+      newPath = pathWithoutLocale; // For default locale, no prefix
+    } else {
+      newPath = `/${newLocale}${pathWithoutLocale === "/" ? "" : pathWithoutLocale}`; // Add prefix for non-default
     }
     
-    // Prepend new locale
-    newPath = `/${newLocale}${newPath === "/" && newLocale !== "" ? "" : newPath}`;
-    if (newPath.endsWith('/') && newPath.length > 1 && !newPath.startsWith(`/${newLocale}/`)) { // avoid double slash for root path with locale
-        newPath = newPath.slice(0, -1);
-    }
-     if (newPath === `/${newLocale}/` && newPath.length > newLocale.length +1 ) newPath = `/${newLocale}`;
+    if (newPath === "") newPath = "/";
 
 
     router.push(newPath);
-    router.refresh(); // Force refresh to ensure server components re-render with new locale
+    // router.refresh() might not be strictly necessary if Next.js handles transitions well
+    // but can be kept to ensure server components re-evaluate with new lang context if needed.
+    // However, since lang is in the path for non-default, or rewritten for default,
+    // the layout and pages should re-render correctly.
   };
+
+  // Determine what the user perceives as the current language based on URL
+  const displayedLang = pathname.startsWith('/km') ? 'km' : 'en';
 
   return (
     <DropdownMenu>
@@ -53,7 +68,7 @@ export default function LanguageSwitcher() {
           <DropdownMenuItem
             key={lng}
             onClick={() => changeLanguage(lng)}
-            disabled={currentLang === lng}
+            disabled={displayedLang === lng} // Disable based on displayed language
           >
             {lng.toUpperCase()}
           </DropdownMenuItem>

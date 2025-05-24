@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { type Project } from '@/lib/data';
@@ -5,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Github, ExternalLink } from 'lucide-react';
+import { defaultLocale } from '@/app/i18n/settings';
 
 interface ProjectCardProps {
   project: Project;
@@ -12,6 +14,7 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ project, lang }: ProjectCardProps) {
+  const projectDetailPath = lang === defaultLocale ? `/projects/${project.slug}` : `/${lang}/projects/${project.slug}`;
   return (
     <Card className="flex flex-col h-full overflow-hidden shadow-lg hover:shadow-accent/20 transition-all duration-300 transform hover:scale-[1.02]">
       <CardHeader className="p-0">
@@ -40,7 +43,7 @@ export default function ProjectCard({ project, lang }: ProjectCardProps) {
       </div>
       <CardFooter className="p-6 pt-0 flex flex-col sm:flex-row sm:justify-between gap-3 items-stretch sm:items-center">
         <Button asChild variant="default" className="w-full sm:w-auto">
-          <Link href={`/${lang}/projects/${project.slug}`}>
+          <Link href={projectDetailPath}>
             View Details <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
