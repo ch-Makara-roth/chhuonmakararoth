@@ -1,27 +1,16 @@
+
 import type { Project } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { languages } from '@/app/i18n/settings';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-
-function getApiUrl(path: string): string {
-  let baseUrl = APP_URL;
-  // When running locally and APP_URL is localhost, fetch might default to IPv6.
-  // Explicitly use 127.0.0.1 (IPv4) to avoid potential SSL/connection errors in some Node.js versions.
-  if (baseUrl.includes('localhost')) {
-    baseUrl = baseUrl.replace('localhost', '127.0.0.1');
-  }
-  return `${baseUrl}${path}`;
-}
-
 async function getProjects(): Promise<Project[]> {
-  const apiUrl = getApiUrl('/api/projects');
-  const res = await fetch(apiUrl, { cache: 'no-store' });
+  const apiPath = '/api/projects';
+  const res = await fetch(apiPath, { cache: 'no-store' });
   if (!res.ok) {
     const errorText = await res.text();
-    console.error('Failed to fetch projects:', res.status, errorText);
-    throw new Error(`Failed to fetch projects. Status: ${res.status}`);
+    console.error(`Failed to fetch projects from ${apiPath}:`, res.status, errorText);
+    throw new Error(`Failed to fetch projects from ${apiPath}. Status: ${res.status}`);
   }
   return res.json();
 }
@@ -45,12 +34,12 @@ export default async function AdminProjectsPage({ params: { lang } }: AdminProje
   }
 
   if (error) {
-    const apiUrlForErrorMessage = getApiUrl('/api/projects');
+    const apiPathForErrorMessage = '/api/projects';
     return (
       <div className="text-destructive-foreground bg-destructive p-4 rounded-md">
         <h2 className="text-xl font-semibold">Error Fetching Projects</h2>
         <p>{error}</p>
-        <p>Please ensure the API endpoint at <code className="text-sm bg-destructive-foreground/20 px-1 rounded">{apiUrlForErrorMessage}</code> is running and accessible, and your database is correctly configured and seeded.</p>
+        <p>Please ensure the API endpoint at <code className="text-sm bg-destructive-foreground/20 px-1 rounded">{apiPathForErrorMessage}</code> is running and accessible, and your database is correctly configured and seeded.</p>
       </div>
     );
   }
