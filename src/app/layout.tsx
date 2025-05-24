@@ -1,5 +1,5 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css'; // Ensure global styles are imported at the very root
 import { Roboto } from 'next/font/google';
 import { GeistMono } from 'geist/font/mono';
@@ -15,13 +15,14 @@ const roboto = Roboto({
   display: 'swap',
 });
 
-// GeistMono is imported as an object, not a function to be called.
-// We will use GeistMono.variable directly in the html className.
-
 export const metadata: Metadata = {
   title: 'Chhuon MakaraRoth Dev - Portfolio',
   description: 'The personal portfolio of Chhuon MakaraRoth, showcasing web development projects, skills, and professional journey.',
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({
