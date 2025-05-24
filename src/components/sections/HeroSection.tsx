@@ -4,7 +4,7 @@
 import { Button } from '@/components/ui/button';
 import { ArrowDown } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { defaultLocale } from '@/app/i18n/settings';
 
@@ -16,7 +16,6 @@ const START_TYPING_DELAY_MS = 1000;
 
 export default function HeroSection() {
   const { t, i18n } = useTranslation('common');
-  // Use i18n.language as the source of truth for the current language
   const currentLang = i18n.language;
   const FULL_NAME = t('hero.name');
 
@@ -24,73 +23,103 @@ export default function HeroSection() {
   const [showBlinkingCursor, setShowBlinkingCursor] = useState(false);
   const [showSubContent, setShowSubContent] = useState(false);
 
+  const initialDelayTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const animationStepTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true); 
+
   useEffect(() => {
-    const initialDelayTimeout = setTimeout(() => {
+    isMountedRef.current = true;
+
+    // Clear any existing timeouts from previous effect runs
+    if (initialDelayTimeoutIdRef.current) {
+      clearTimeout(initialDelayTimeoutIdRef.current);
+      initialDelayTimeoutIdRef.current = null;
+    }
+    if (animationStepTimeoutIdRef.current) {
+      clearTimeout(animationStepTimeoutIdRef.current);
+      animationStepTimeoutIdRef.current = null;
+    }
+
+    // Reset state when FULL_NAME changes (e.g., on language switch)
+    setTypedName("");
+    setShowBlinkingCursor(false);
+    setShowSubContent(false); // Reset sub-content visibility for fresh animation
+
+    initialDelayTimeoutIdRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
       setShowBlinkingCursor(true);
+      
       let index = 0;
-      let currentDisplayedName = "";
+      let currentDisplayedName = ""; 
       let phase: 'typing' | 'pausing_after_typing' | 'erasing' | 'pausing_after_erasing' = 'typing';
-      let animationTimeoutId: NodeJS.Timeout | null = null;
 
       const runAnimationStep = () => {
+        if (!isMountedRef.current) { 
+          if (animationStepTimeoutIdRef.current) clearTimeout(animationStepTimeoutIdRef.current);
+          return;
+        }
+
         switch (phase) {
           case 'typing':
             setShowBlinkingCursor(true);
             if (index < FULL_NAME.length) {
               currentDisplayedName += FULL_NAME[index];
-              setTypedName(currentDisplayedName);
+              if (isMountedRef.current) setTypedName(currentDisplayedName);
               index++;
-              animationTimeoutId = setTimeout(runAnimationStep, TYPING_SPEED_MS);
+              animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, TYPING_SPEED_MS);
             } else {
-              if (!showSubContent) {
+              if (isMountedRef.current && !showSubContent) { 
                 setShowSubContent(true);
               }
               phase = 'pausing_after_typing';
               setShowBlinkingCursor(false);
-              animationTimeoutId = setTimeout(runAnimationStep, PAUSE_AFTER_TYPING_MS);
+              animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, PAUSE_AFTER_TYPING_MS);
             }
             break;
           case 'pausing_after_typing':
             phase = 'erasing';
             setShowBlinkingCursor(true);
-            animationTimeoutId = setTimeout(runAnimationStep, 0);
+            animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, 0);
             break;
           case 'erasing':
             setShowBlinkingCursor(true);
             if (currentDisplayedName.length > 0) {
               currentDisplayedName = currentDisplayedName.slice(0, -1);
-              setTypedName(currentDisplayedName);
-              animationTimeoutId = setTimeout(runAnimationStep, ERASING_SPEED_MS);
+              if (isMountedRef.current) setTypedName(currentDisplayedName);
+              animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, ERASING_SPEED_MS);
             } else {
               phase = 'pausing_after_erasing';
-              animationTimeoutId = setTimeout(runAnimationStep, PAUSE_AFTER_ERASING_MS);
+              animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, PAUSE_AFTER_ERASING_MS);
             }
             break;
           case 'pausing_after_erasing':
             phase = 'typing';
             index = 0;
-            currentDisplayedName = "";
             setShowBlinkingCursor(true);
-            animationTimeoutId = setTimeout(runAnimationStep, 0);
+            animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, 0);
             break;
         }
       };
-
-      runAnimationStep();
-
-      return () => {
-        if (animationTimeoutId) clearTimeout(animationTimeoutId);
-      };
+      if (isMountedRef.current) {
+        runAnimationStep();
+      }
     }, START_TYPING_DELAY_MS);
 
     return () => {
-        clearTimeout(initialDelayTimeout);
+      isMountedRef.current = false;
+      if (initialDelayTimeoutIdRef.current) {
+        clearTimeout(initialDelayTimeoutIdRef.current);
+        initialDelayTimeoutIdRef.current = null;
+      }
+      if (animationStepTimeoutIdRef.current) {
+        clearTimeout(animationStepTimeoutIdRef.current);
+        animationStepTimeoutIdRef.current = null;
+      }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [FULL_NAME, showSubContent]); 
+  }, [FULL_NAME]); // Effect depends only on FULL_NAME
 
   const getLocalizedPath = (path: string) => {
-    if (path.startsWith('#')) { // Handle hash links
+    if (path.startsWith('#')) {
         return currentLang === defaultLocale ? path : `/${currentLang}${path}`;
     }
     const normalizedPath = path === '/' ? '' : path;
