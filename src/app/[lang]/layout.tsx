@@ -1,26 +1,24 @@
 
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google'; // Using Inter as a common default, adjust if needed
-import '../globals.css';
+import '../globals.css'; // Ensure global styles are imported
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import TranslationsProvider from '@/components/layout/TranslationsProvider';
 import initTranslations from '@/app/i18n';
 import { languages, defaultNS } from '@/app/i18n/settings';
-import { Geist_Sans } from 'geist/font/sans'; // Corrected import
-import { Geist_Mono } from 'geist/font/mono'; // Corrected import
+import { Geist_Sans } from 'geist/font/sans';
+import { Geist_Mono } from 'geist/font/mono';
 
-const geistSans = Geist_Sans({ // Corrected usage
+const geistSans = Geist_Sans({
   variable: '--font-geist-sans',
   subsets: ['latin'],
 });
 
-const geistMono = Geist_Mono({ // Corrected usage
+const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
-
 
 export async function generateStaticParams() {
   return languages.map((lang) => ({ lang }));
@@ -31,6 +29,8 @@ export async function generateMetadata({ params: { lang } }: { params: { lang: s
   return {
     title: t('header.appName') + " - Portfolio",
     description: 'Personal portfolio of Chhuon MakaraRoth, showcasing projects, skills, and career journey.',
+    // Viewport settings are often good to have in metadata
+    viewport: 'width=device-width, initial-scale=1',
   };
 }
 
@@ -47,7 +47,7 @@ export default async function RootLayout({
 
   return (
     <html lang={lang} suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className={`antialiased font-sans`}>
+      <body className={`antialiased font-sans bg-background text-foreground`}>
         <TranslationsProvider
           locale={lang}
           namespaces={i18nNamespaces}
@@ -55,12 +55,14 @@ export default async function RootLayout({
         >
           <ThemeProvider
             attribute="class"
-            defaultTheme="dark"
+            defaultTheme="dark" // As per original PRD, dark scheme is preferred
             enableSystem
             disableTransitionOnChange
           >
             <AppHeader />
-            <main>{children}</main>
+            <main className="flex-grow"> {/* Use flex-grow if AppHeader is fixed/sticky and you want main to fill space */}
+              {children}
+            </main>
             <Toaster />
           </ThemeProvider>
         </TranslationsProvider>
