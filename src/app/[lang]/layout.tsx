@@ -29,7 +29,6 @@ export async function generateMetadata({ params: { lang } }: { params: { lang: s
   return {
     title: t('header.appName') + " - Portfolio",
     description: 'Personal portfolio of Chhuon MakaraRoth, showcasing projects, skills, and career journey.',
-    // Viewport settings are often good to have in metadata
     viewport: 'width=device-width, initial-scale=1',
   };
 }
@@ -55,12 +54,12 @@ export default async function RootLayout({
         >
           <ThemeProvider
             attribute="class"
-            defaultTheme="dark" // As per original PRD, dark scheme is preferred
+            defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
           >
             <AppHeader />
-            <main className="flex-grow"> {/* Use flex-grow if AppHeader is fixed/sticky and you want main to fill space */}
+            <main className="flex-grow">
               {children}
             </main>
             <Toaster />
