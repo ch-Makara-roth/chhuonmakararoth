@@ -15,8 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { deleteProject } from './actions';
-// import { revalidatePath } from 'next/cache'; // Revalidation is handled in server actions
 import ActionsDropdownMenu from '@/components/admin/ActionsDropdownMenu';
+import Image from 'next/image';
 
 async function getProjectsDirectly(): Promise<Project[]> {
   try {
@@ -41,10 +41,6 @@ export default async function AdminProjectsPage() {
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }
-
-  // const handlePostDelete = () => { // Removed this function
-  //   revalidatePath('/admin/projects');
-  // };
 
   if (error) {
     return (
@@ -81,6 +77,7 @@ export default async function AdminProjectsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[80px]">Image</TableHead>
                   <TableHead className="w-[250px]">Title</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead>Dates</TableHead>
@@ -91,6 +88,17 @@ export default async function AdminProjectsPage() {
               <TableBody>
                 {projects.map((project) => (
                   <TableRow key={project.id}>
+                    <TableCell>
+                      {project.imageUrl && (
+                        <Image 
+                          src={project.imageUrl} 
+                          alt={project.title} 
+                          width={60} 
+                          height={40} 
+                          className="rounded object-cover" 
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{project.title}</TableCell>
                     <TableCell>{project.slug}</TableCell>
                     <TableCell className="text-sm">
@@ -109,7 +117,6 @@ export default async function AdminProjectsPage() {
                         itemName={project.title}
                         editPath={`/admin/projects/edit/${project.id}`}
                         deleteAction={deleteProject}
-                        // onDeleteSuccess={handlePostDelete} // Removed this prop
                       />
                     </TableCell>
                   </TableRow>
@@ -122,7 +129,6 @@ export default async function AdminProjectsPage() {
                 <p className="text-sm text-muted-foreground">
                     Total {projects.length} project(s).
                 </p>
-                {/* Placeholder for pagination */}
             </CardFooter>
             )}
         </Card>
@@ -132,3 +138,4 @@ export default async function AdminProjectsPage() {
 }
 
 export const dynamic = 'force-dynamic';
+  

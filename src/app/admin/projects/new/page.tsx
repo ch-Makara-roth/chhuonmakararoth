@@ -17,9 +17,12 @@ export default function NewProjectPage() {
         </Button>
         <h1 className="text-2xl font-semibold">Add New Project</h1>
       </div>
-      <ProjectForm onSubmitAction={createProject} formType="create" />
+      <ProjectForm 
+        onSubmitAction={createProject as (idOrFormData: string | FormData, formData?: FormData) => Promise<any>} 
+        formType="create" 
+      />
     </div>
   );
 }
 
-export const dynamic = 'force-dynamic'; // Ensure server actions work correctly
+export const dynamic = 'force-dynamic';

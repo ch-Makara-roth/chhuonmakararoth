@@ -38,7 +38,7 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
       <ProjectForm 
         formType="edit" 
         project={project} 
-        onSubmitAction={updateProject as any} // Cast needed due to discriminated union complexity for actions
+        onSubmitAction={updateProject as (idOrFormData: string | FormData, formData?: FormData) => Promise<any>}
       />
     </div>
   );

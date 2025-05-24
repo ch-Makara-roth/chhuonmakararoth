@@ -3,34 +3,57 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { projectFormSchema, type ProjectFormData } from '@/lib/validators/project-validator';
+import { projectFormSchema, type ProjectClientFormData, MAX_FILE_SIZE_BYTES, ACCEPTED_IMAGE_TYPES } from '@/lib/validators/project-validator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Project } from '@prisma/client'; // Prisma's Project type
-import { useRouter } from 'next/navigation'; // For redirecting after create/update
+import type { Project } from '@prisma/client';
+import { useRouter } from 'next/navigation';
 import type { ProjectActionResponse } from '@/app/admin/projects/actions';
+import Image from 'next/image';
+import { useState, useEffect } from 'react';
 
 interface ProjectFormProps {
-  project?: Project | null; // For pre-filling the form in edit mode
+  project?: Project | null;
   formType: 'create' | 'edit';
-  // Adjust onSubmitAction to reflect the potentially different signatures
-  onSubmitAction: (data: ProjectFormData) => Promise<ProjectActionResponse> | ((id: string, data: ProjectFormData) => Promise<ProjectActionResponse>);
+  onSubmitAction: (idOrFormData: string | FormData, formData?: FormData) => Promise<ProjectActionResponse>;
 }
 
-export default function ProjectForm({ project, formType, onSubmitAction }: ProjectFormProps) {
+// Client-side Zod schema for react-hook-form
+const clientSchema = projectFormSchema.extend({
+  imageFile: z.custom<FileList | null | undefined>(
+    (val) => val === undefined || val === null || val instanceof FileList,
+    "Invalid file input"
+  )
+  .refine(
+    (files) => (formType === 'create' && files?.[0]) ? files[0].size <= MAX_FILE_SIZE_BYTES : true, // Required on create, optional on edit for size
+    `Max image size is ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.`
+  )
+  .refine(
+    (files) => (files?.[0]) ? ACCEPTED_IMAGE_TYPES.includes(files[0].type) : true, // Validate type if file exists
+    "Only .jpg, .jpeg, .png, .webp, .gif formats are supported."
+  )
+  .optional(),
+  currentImageUrl: z.string().optional(), // Not for submission, just for form state
+});
+let formType: 'create' | 'edit' = 'create'; // Variable to hold formType for schema refs
+
+export default function ProjectForm({ project, formType: formTypeProp, onSubmitAction }: ProjectFormProps) {
   const { toast } = useToast();
   const router = useRouter();
+  formType = formTypeProp; // Assign prop to module-level variable for schema
 
-  const defaultValues: Partial<ProjectFormData> = {
+  const [previewImage, setPreviewImage] = useState<string | null>(project?.imageUrl || null);
+
+  const defaultValues: Partial<ProjectClientFormData> = {
     title: project?.title || '',
     slug: project?.slug || '',
     shortDescription: project?.shortDescription || '',
     description: project?.description || '',
-    imageUrl: project?.imageUrl || '',
+    // imageUrl is not directly set for file input via RHF defaults
     dataAiHint: project?.dataAiHint || '',
     technologies: project?.technologies.join(', ') || '',
     liveLink: project?.liveLink || '',
@@ -39,30 +62,76 @@ export default function ProjectForm({ project, formType, onSubmitAction }: Proje
     endDate: project?.endDate || '',
     detailsImagesString: project?.detailsImages.join(', ') || '',
     featuresString: project?.features.join(', ') || '',
+    imageFile: null,
+    currentImageUrl: project?.imageUrl || undefined,
   };
   
-  const form = useForm<ProjectFormData>({
-    resolver: zodResolver(projectFormSchema),
+  const form = useForm<ProjectClientFormData>({
+    resolver: zodResolver(clientSchema), // Use client-specific schema
     defaultValues,
+    mode: 'onChange',
   });
 
-  const { formState: { isSubmitting } } = form;
+  const { formState: { isSubmitting, errors }, watch } = form;
 
-  async function onSubmit(data: ProjectFormData) {
-    let result: ProjectActionResponse;
-    if (formType === 'edit' && project?.id) {
-      result = await (onSubmitAction as (id: string, data: ProjectFormData) => Promise<ProjectActionResponse>)(project.id, data);
+  const imageFileWatch = watch("imageFile");
+
+  useEffect(() => {
+    if (imageFileWatch && imageFileWatch.length > 0) {
+      const file = imageFileWatch[0];
+      if (file && ACCEPTED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE_BYTES) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // If file is invalid, clear preview or show existing
+        setPreviewImage(project?.imageUrl || null);
+      }
+    } else if (project?.imageUrl) {
+      setPreviewImage(project.imageUrl);
     } else {
-      result = await (onSubmitAction as (data: ProjectFormData) => Promise<ProjectActionResponse>)(data);
+        setPreviewImage(null);
+    }
+  }, [imageFileWatch, project?.imageUrl]);
+
+
+  async function onSubmit(data: ProjectClientFormData) {
+    const formData = new FormData();
+
+    // Append text fields
+    (Object.keys(data) as Array<keyof ProjectClientFormData>).forEach((key) => {
+      if (key !== 'imageFile' && key !== 'currentImageUrl' && data[key] !== undefined && data[key] !== null) {
+        // Ensure slugs are correctly handled (empty string vs. undefined)
+        if (key === 'slug' && data[key] === '') {
+          // Don't append if slug is explicitly empty, let server handle auto-generation
+        } else {
+          formData.append(key, String(data[key]));
+        }
+      }
+    });
+    
+    // Append file if selected
+    if (data.imageFile && data.imageFile.length > 0) {
+      formData.append('imageFile', data.imageFile[0]);
+    }
+    // If editing and no new file, server action will use existing imageUrl from DB.
+
+    let result: ProjectActionResponse;
+    if (formTypeProp === 'edit' && project?.id) {
+      result = await onSubmitAction(project.id, formData);
+    } else {
+      result = await onSubmitAction(formData);
     }
 
     if (result.success) {
       toast({
-        title: formType === 'create' ? 'Project Created' : 'Project Updated',
+        title: formTypeProp === 'create' ? 'Project Created' : 'Project Updated',
         description: result.message,
       });
-      router.push('/admin/projects'); // Redirect to list page on success
-      // router.refresh(); // Not always needed due to revalidatePath in action, but can ensure client state sync
+      router.push('/admin/projects');
+      router.refresh(); // Ensure list is updated
     } else {
       toast({
         title: 'Error',
@@ -70,7 +139,7 @@ export default function ProjectForm({ project, formType, onSubmitAction }: Proje
         variant: 'destructive',
       });
       if (result.errors) {
-        (Object.keys(result.errors) as Array<keyof ProjectFormData>).forEach((key) => {
+        (Object.keys(result.errors) as Array<keyof ProjectClientFormData>).forEach((key) => {
           const fieldErrors = result.errors?.[key];
           const message = fieldErrors?.join ? fieldErrors.join(', ') : String(fieldErrors);
           if (message && form.getFieldState(key)) {
@@ -84,9 +153,9 @@ export default function ProjectForm({ project, formType, onSubmitAction }: Proje
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{formType === 'create' ? 'Create New Project' : `Edit Project: ${project?.title || ''}`}</CardTitle>
+        <CardTitle>{formTypeProp === 'create' ? 'Create New Project' : `Edit Project: ${project?.title || ''}`}</CardTitle>
         <CardDescription>
-          {formType === 'create' ? 'Fill in the details for the new project.' : 'Update the project details.'}
+          {formTypeProp === 'create' ? 'Fill in the details for the new project.' : 'Update the project details.'}
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -116,7 +185,7 @@ export default function ProjectForm({ project, formType, onSubmitAction }: Proje
                     <Input placeholder="project-slug (auto-generated if empty and creating)" {...field} />
                   </FormControl>
                   <FormDescription>
-                    {formType === 'create' 
+                    {formTypeProp === 'create' 
                       ? "Leave empty to auto-generate from title. Must be unique, lowercase alphanumeric with hyphens."
                       : "Must be unique, lowercase alphanumeric with hyphens. Modifying slugs can affect SEO."}
                   </FormDescription>
@@ -124,6 +193,60 @@ export default function ProjectForm({ project, formType, onSubmitAction }: Proje
                 </FormItem>
               )}
             />
+            
+            {previewImage && (
+              <FormItem>
+                <FormLabel>Current/Preview Image</FormLabel>
+                <div className="mt-2">
+                  <Image 
+                    src={previewImage.startsWith('data:') ? previewImage : previewImage} 
+                    alt="Project image preview" 
+                    width={200} 
+                    height={150} 
+                    className="rounded-md object-cover border"
+                  />
+                </div>
+              </FormItem>
+            )}
+
+            <FormField
+              control={form.control}
+              name="imageFile"
+              render={({ field: { onChange, value, ...restField }}) => ( // Destructure to avoid passing FileList to Input
+                <FormItem>
+                  <FormLabel>{formTypeProp === 'edit' && project?.imageUrl ? 'Replace Project Image' : 'Project Image'}</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="file" 
+                      accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                      onChange={(e) => {
+                        onChange(e.target.files); // Pass FileList to RHF
+                        if (e.target.files && e.target.files[0]) {
+                           if (e.target.files[0].size > MAX_FILE_SIZE_BYTES) {
+                               form.setError("imageFile", { type: "manual", message: `Max image size is ${MAX_FILE_SIZE_BYTES / (1024*1024)}MB.`});
+                               setPreviewImage(project?.imageUrl || null); // Revert to old if new is too large
+                               return;
+                           }
+                           if (!ACCEPTED_IMAGE_TYPES.includes(e.target.files[0].type)) {
+                               form.setError("imageFile", { type: "manual", message: "Invalid file type."});
+                               setPreviewImage(project?.imageUrl || null); // Revert to old if type is wrong
+                               return;
+                           }
+                           form.clearErrors("imageFile"); // Clear error if valid
+                        }
+                      }}
+                      {...restField} 
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Max file size: {MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB. Accepted types: JPG, PNG, WEBP, GIF.
+                    {formTypeProp === 'edit' && project?.imageUrl ? ' Leave empty to keep the current image.' : ''}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
 
             <FormField
               control={form.control}
@@ -147,20 +270,6 @@ export default function ProjectForm({ project, formType, onSubmitAction }: Proje
                   <FormLabel>Full Description</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Detailed description of the project..." {...field} rows={6} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="imageUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Main Image URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/image.png" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -285,7 +394,7 @@ export default function ProjectForm({ project, formType, onSubmitAction }: Proje
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (formType === 'create' ? 'Creating...' : 'Saving...') : (formType === 'create' ? 'Create Project' : 'Save Changes')}
+              {isSubmitting ? (formTypeProp === 'create' ? 'Creating...' : 'Saving...') : (formTypeProp === 'create' ? 'Create Project' : 'Save Changes')}
             </Button>
           </CardFooter>
         </form>

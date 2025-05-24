@@ -2,52 +2,102 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { projectFormSchema, type ProjectFormData } from '@/lib/validators/project-validator';
+import { projectFormSchema, type ProjectProcessedFormData, MAX_FILE_SIZE_BYTES, ACCEPTED_IMAGE_TYPES } from '@/lib/validators/project-validator';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import fs from 'fs/promises';
+import path from 'path';
+import { writeFile } from 'fs/promises';
 
 export type ProjectActionResponse = {
   success: boolean;
   message: string;
-  errors: Partial<Record<keyof ProjectFormData, string[]>> | null;
-  projectId?: string; // For returning created/updated project ID
+  errors?: Partial<Record<keyof ProjectProcessedFormData | "imageFile" | "_form", string[]>> | null;
+  projectId?: string;
 };
 
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
-    .replace(/\s+/g, '-') // Replace spaces with -
-    .replace(/[^\w-]+/g, '') // Remove all non-word chars
-    .replace(/--+/g, '-') // Replace multiple - with single -
-    .replace(/^-+/, '') // Trim - from start of text
-    .replace(/-+$/, ''); // Trim - from end of text
+    .replace(/\s+/g, '-') 
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-') 
+    .replace(/^-+/, '') 
+    .replace(/-+$/, '');
 }
 
-export async function createProject(formData: ProjectFormData): Promise<ProjectActionResponse> {
-  const validationResult = projectFormSchema.safeParse(formData);
+async function handleImageUpload(imageFile: File | null, existingImageUrl?: string | null): Promise<string | null | undefined> {
+  if (!imageFile || imageFile.size === 0) {
+    return existingImageUrl; // Keep existing or undefined if creating and no file
+  }
+
+  if (imageFile.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(`Image size exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB limit.`);
+  }
+  if (!ACCEPTED_IMAGE_TYPES.includes(imageFile.type)) {
+    throw new Error(`Invalid image type. Accepted types: ${ACCEPTED_IMAGE_TYPES.join(', ')}`);
+  }
+
+  const uploadDir = path.join(process.cwd(), 'public/uploads/projects');
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  const fileExtension = path.extname(imageFile.name);
+  const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+  const filename = `${uniqueSuffix}${fileExtension}`;
+  const filePath = path.join(uploadDir, filename);
+
+  const buffer = Buffer.from(await imageFile.arrayBuffer());
+  await writeFile(filePath, buffer);
+
+  return `/uploads/projects/${filename}`; // Relative path for DB
+}
+
+export async function createProject(formData: FormData): Promise<ProjectActionResponse> {
+  const rawData: Record<string, any> = {};
+  formData.forEach((value, key) => {
+    // For file inputs, FormData stores the File object directly
+    if (key === 'imageFile' && value instanceof File && value.size > 0) {
+      rawData[key] = value;
+    } else if (key !== 'imageFile') { // Handle text fields
+      rawData[key] = value;
+    }
+  });
+
+  let imageUrlToStore: string | null = null;
+  const imageFile = rawData.imageFile as File | null;
+
+  try {
+    if (!imageFile || imageFile.size === 0) {
+        return { success: false, message: 'Project image is required for creation.', errors: { imageFile: ['Project image is required.']}};
+    }
+    imageUrlToStore = await handleImageUpload(imageFile, null);
+    if (!imageUrlToStore) { // Should be caught by previous check or handleImageUpload error
+        return { success: false, message: 'Image upload failed.', errors: { imageFile: ['Image upload failed or image was not provided.']}};
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Image processing failed.';
+    return { success: false, message, errors: { imageFile: [message] } };
+  }
+  
+  const textDataToValidate = { ...rawData };
+  delete textDataToValidate.imageFile; // Remove file from data to be validated by Zod for text fields
+
+  const validationResult = projectFormSchema.safeParse(textDataToValidate);
 
   if (!validationResult.success) {
     return {
       success: false,
       message: 'Invalid form data.',
-      errors: validationResult.error.flatten().fieldErrors as Partial<Record<keyof ProjectFormData, string[]>>,
+      errors: validationResult.error.flatten().fieldErrors as ProjectActionResponse['errors'],
     };
   }
 
   const data = validationResult.data;
-
-  let slug = data.slug;
-  if (!slug || slug.trim() === '') {
-    slug = generateSlug(data.title);
-  }
-
+  let slug = data.slug && data.slug.trim() !== '' ? data.slug : generateSlug(data.title);
+  
   try {
-    const existingProjectBySlug = await prisma.project.findUnique({
-      where: { slug },
-    });
-
+    const existingProjectBySlug = await prisma.project.findUnique({ where: { slug } });
     if (existingProjectBySlug) {
       return {
         success: false,
@@ -65,9 +115,7 @@ export async function createProject(formData: ProjectFormData): Promise<ProjectA
       const urlSchema = z.string().url();
       for (const url of urls) {
         const parsedUrl = urlSchema.safeParse(url);
-        if (parsedUrl.success) {
-          detailsImagesArray.push(parsedUrl.data);
-        }
+        if (parsedUrl.success) { detailsImagesArray.push(parsedUrl.data); }
       }
     }
 
@@ -77,7 +125,7 @@ export async function createProject(formData: ProjectFormData): Promise<ProjectA
         slug: slug,
         shortDescription: data.shortDescription,
         description: data.description,
-        imageUrl: data.imageUrl,
+        imageUrl: imageUrlToStore, // Use the uploaded image path
         dataAiHint: data.dataAiHint || null,
         technologies: technologiesArray,
         liveLink: data.liveLink || null,
@@ -90,84 +138,87 @@ export async function createProject(formData: ProjectFormData): Promise<ProjectA
     });
     
     revalidatePath('/admin/projects');
-    // Instead of immediate redirect, return success and projectId for toast on client
+    revalidatePath(`/projects/${newProject.slug}`);
     return {
       success: true,
       message: 'Project created successfully!',
-      errors: null,
       projectId: newProject.id,
     };
 
   } catch (e: unknown) {
     console.error('Failed to create project:', e);
     let message = 'Failed to create project. Please try again.';
-    let errors: Partial<Record<keyof ProjectFormData, string[]>> | null = null;
+    let errors: ProjectActionResponse['errors'] = null;
 
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === 'P2002') {
          const target = (e.meta?.target as string[]) || [];
          if (target.includes('slug')) {
-            message = 'A project with this slug already exists. Please choose a unique slug or leave it empty to auto-generate.';
+            message = 'A project with this slug already exists.';
             errors = { slug: ['Slug already exists.'] };
          } else {
             message = `A unique constraint violation occurred on field(s): ${target.join(', ')}.`;
          }
-      } else {
-        message = `Database error: ${e.message}`;
-      }
-    } else if (e instanceof Error) {
-      message = e.message;
-    }
+      } else { message = `Database error: ${e.message}`; }
+    } else if (e instanceof Error) { message = e.message; }
     
-    return {
-      success: false,
-      message: message,
-      errors: errors,
-    };
+    return { success: false, message: message, errors: errors };
   }
 }
 
-export async function updateProject(id: string, formData: ProjectFormData): Promise<ProjectActionResponse> {
-  const validationResult = projectFormSchema.safeParse(formData);
+export async function updateProject(id: string, formData: FormData): Promise<ProjectActionResponse> {
+  const projectToUpdate = await prisma.project.findUnique({ where: { id } });
+  if (!projectToUpdate) {
+    return { success: false, message: 'Project not found.', errors: null };
+  }
+
+  const rawData: Record<string, any> = {};
+  formData.forEach((value, key) => {
+    if (key === 'imageFile' && value instanceof File && value.size > 0) {
+      rawData[key] = value;
+    } else if (key !== 'imageFile') {
+      rawData[key] = value;
+    }
+  });
+
+  let imageUrlToStore = projectToUpdate.imageUrl; // Default to current image
+  const imageFile = rawData.imageFile as File | null;
+
+  try {
+    // If a new file is provided, upload it and update imageUrlToStore
+    if (imageFile && imageFile.size > 0) {
+      // Ideally, delete old image here if imageUrlToStore changes and old one existed
+      imageUrlToStore = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Image processing failed.';
+    return { success: false, message, errors: { imageFile: [message] } };
+  }
+  
+  const textDataToValidate = { ...rawData };
+  delete textDataToValidate.imageFile;
+
+  const validationResult = projectFormSchema.safeParse(textDataToValidate);
 
   if (!validationResult.success) {
     return {
       success: false,
       message: 'Invalid form data for update.',
-      errors: validationResult.error.flatten().fieldErrors as Partial<Record<keyof ProjectFormData, string[]>>,
+      errors: validationResult.error.flatten().fieldErrors as ProjectActionResponse['errors'],
     };
   }
 
   const data = validationResult.data;
-  let slugToUse = data.slug;
-
+  let slugToUse = data.slug && data.slug.trim() !== '' ? data.slug : projectToUpdate.slug;
+  if (data.title !== projectToUpdate.title && (!data.slug || data.slug.trim() === '')) {
+      slugToUse = generateSlug(data.title);
+  }
+  
   try {
-    const existingProject = await prisma.project.findUnique({
-      where: { id },
-    });
-
-    if (!existingProject) {
-      return { success: false, message: 'Project not found.', errors: null };
-    }
-
-    if (!slugToUse || slugToUse.trim() === '') {
-      slugToUse = existingProject.slug; // Keep original slug if new one is empty
-      if (data.title !== existingProject.title) { // If title changed and slug is empty, generate new slug from title
-        slugToUse = generateSlug(data.title);
-      }
-    }
-    
-    // If slug has changed, check for uniqueness
-    if (slugToUse !== existingProject.slug) {
-      const projectWithNewSlug = await prisma.project.findFirst({
-        where: { slug: slugToUse, NOT: { id } },
-      });
+    if (slugToUse !== projectToUpdate.slug) {
+      const projectWithNewSlug = await prisma.project.findFirst({ where: { slug: slugToUse, NOT: { id } } });
       if (projectWithNewSlug) {
-        return {
-          success: false,
-          message: 'Another project with this slug already exists.',
-          errors: { slug: ['Slug already exists.'] },
-        };
+        return { success: false, message: 'Another project with this slug already exists.', errors: { slug: ['Slug already exists.'] } };
       }
     }
     
@@ -179,9 +230,7 @@ export async function updateProject(id: string, formData: ProjectFormData): Prom
       const urlSchema = z.string().url();
       for (const url of urls) {
         const parsedUrl = urlSchema.safeParse(url);
-        if (parsedUrl.success) {
-          detailsImagesArray.push(parsedUrl.data);
-        }
+        if (parsedUrl.success) { detailsImagesArray.push(parsedUrl.data); }
       }
     }
 
@@ -192,7 +241,7 @@ export async function updateProject(id: string, formData: ProjectFormData): Prom
         slug: slugToUse,
         shortDescription: data.shortDescription,
         description: data.description,
-        imageUrl: data.imageUrl,
+        imageUrl: imageUrlToStore, // Updated image path
         dataAiHint: data.dataAiHint || null,
         technologies: technologiesArray,
         liveLink: data.liveLink || null,
@@ -206,35 +255,27 @@ export async function updateProject(id: string, formData: ProjectFormData): Prom
 
     revalidatePath('/admin/projects');
     revalidatePath(`/admin/projects/edit/${id}`);
-    revalidatePath(`/projects/${updatedProject.slug}`); // Revalidate public page too
+    revalidatePath(`/projects/${updatedProject.slug}`);
 
     return {
       success: true,
       message: 'Project updated successfully!',
-      errors: null,
       projectId: updatedProject.id,
     };
 
   } catch (e: unknown) {
     console.error('Failed to update project:', e);
     let message = 'Failed to update project. Please try again.';
-    let errors: Partial<Record<keyof ProjectFormData, string[]>> | null = null;
+    let errors: ProjectActionResponse['errors'] = null;
      if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === 'P2002') {
-         // This should be caught by the explicit slug check above, but as a fallback:
          const target = (e.meta?.target as string[]) || [];
          if (target.includes('slug')) {
             message = 'A project with this slug already exists.';
             errors = { slug: ['Slug already exists.'] };
-         } else {
-            message = `A unique constraint violation occurred on field(s): ${target.join(', ')}.`;
-         }
-      } else {
-        message = `Database error: ${e.message}`;
-      }
-    } else if (e instanceof Error) {
-      message = e.message;
-    }
+         } else { message = `A unique constraint violation occurred on field(s): ${target.join(', ')}.`;}
+      } else { message = `Database error: ${e.message}`; }
+    } else if (e instanceof Error) { message = e.message; }
     return { success: false, message, errors };
   }
 }
@@ -246,17 +287,28 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
       return { success: false, message: "Project not found." };
     }
 
+    // Attempt to delete the image file
+    if (project.imageUrl && project.imageUrl.startsWith('/uploads/projects/')) {
+        const imagePath = path.join(process.cwd(), 'public', project.imageUrl);
+        try {
+            await fs.unlink(imagePath);
+            console.log(`Deleted image file: ${imagePath}`);
+        } catch (fileError: any) {
+            // Log error but don't fail the whole operation if file deletion fails (e.g., file not found)
+            console.error(`Failed to delete image file ${imagePath}: ${fileError.message}`);
+        }
+    }
+
     await prisma.project.delete({
       where: { id },
     });
     revalidatePath('/admin/projects');
-    revalidatePath(`/projects/${project.slug}`); // Revalidate public page
+    revalidatePath(`/projects/${project.slug}`); 
     return { success: true, message: 'Project deleted successfully.' };
   } catch (e: unknown) {
     console.error('Failed to delete project:', e);
     let message = 'Failed to delete project. Please try again.';
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        // e.g. P2025 Record to delete does not exist.
         message = `Database error: ${e.message}`;
     } else if (e instanceof Error) {
       message = e.message;
