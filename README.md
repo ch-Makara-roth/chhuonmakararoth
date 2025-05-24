@@ -6,14 +6,13 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 ## Key Features
 
 *   **Dynamic Portfolio Frontend**: Showcasing projects, professional experience/journey, and skills.
-*   **Internationalization (i18n)**: Supports English and Khmer languages.
-*   **Next.js API Routes & Server Actions**: Manages content for projects, experience, and skills.
-*   **Prisma ORM**: Provides a type-safe database access layer for MongoDB.
+*   **Internationalization (i18n)**: Supports English and Khmer languages using `react-i18next`.
+*   **MongoDB Backend**: Data stored in MongoDB and accessed via Prisma ORM.
 *   **Custom Admin Panel**:
     *   Accessible at `/admin`.
-    *   Protected by username/password authentication (NextAuth.js).
+    *   Protected by email/password authentication using NextAuth.js.
     *   CRUD (Create, Read, Update, Delete) operations for Projects, Experience, and Skills.
-    *   Image uploads for projects (local storage for development).
+    *   Image uploads for projects (local storage for development, see production notes).
 *   **ShadCN UI & Tailwind CSS**: For modern and responsive styling.
 *   **Typing Animation**: Engaging hero section with a typing effect.
 *   **Theme Switcher**: Light and dark mode support.
@@ -63,7 +62,7 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
     ```
 
 2.  Update `.env.local` with your specific credentials and settings:
-    *   `DATABASE_URL`: Your MongoDB connection string. **Important:** It must include the database name (e.g., `...mongodb.net/yourDatabaseName?retryWrites...`).
+    *   `DATABASE_URL`: Your MongoDB connection string. **Important:** It must include the database name (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/yourDatabaseName?retryWrites=true&w=majority`).
     *   `NEXTAUTH_URL`: The base URL for your application when running locally (e.g., `http://localhost:9002`). This is important for NextAuth.js OAuth callbacks and other functions.
     *   `NEXTAUTH_SECRET`: A random string used to hash tokens, sign cookies, and generate cryptographic keys. You can generate one using `openssl rand -base64 32` or an online generator.
     *   `NEXT_PUBLIC_APP_URL`: The base URL for your application, accessible by the client-side (e.g., `http://localhost:9002`).
@@ -112,7 +111,7 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 ### Available Scripts
 
 *   `bun run dev` / `npm run dev`: Starts the Next.js development server.
-*   `bun run build` / `npm run build`: Builds the application for production.
+*   `bun run build` / `npm run build`: Builds the application for production. This script now also runs `prisma generate`, `prisma db push`, and `npm run prisma:seed`. See "Database Seeding on Vercel" under Deployment for implications.
 *   `bun run start` / `npm run start`: Starts a Next.js production server.
 *   `bun run lint` / `npm run lint`: Runs Next.js ESLint.
 *   `bun run typecheck` / `npm run typecheck`: Runs TypeScript type checking.
@@ -134,23 +133,22 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 │   ├── ai/                 # Genkit AI flows and configuration (if used)
 │   ├── app/                # Next.js App Router
 │   │   ├── [lang]/         # Language-specific routes (public facing)
-│   │   │   ├── admin/      # (Old admin location, should be removed if not already)
-│   │   │   ├── api/        # (Old API location, should be removed if not already)
-│   │   │   ├── (public_routes)/ # Public facing pages (layout.tsx, page.tsx)
-│   │   │   └── projects/[slug]/page.tsx
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx    # Main public landing page
+│   │   │   └── projects/[slug]/page.tsx # Project detail page
 │   │   ├── admin/          # Admin panel pages (layout.tsx, page.tsx, CRUD pages)
 │   │   ├── api/            # API route handlers (e.g., for auth)
 │   │   ├── globals.css     # Global styles
-│   │   ├── layout.tsx      # Global root layout
+│   │   ├── layout.tsx      # Global root layout (for non-localized routes like admin/login)
 │   │   └── login/page.tsx  # Admin login page
 │   ├── components/         # UI components (ShadCN, custom)
-│   │   ├── admin/          # Admin specific components (forms)
+│   │   ├── admin/          # Admin specific components (forms, action menus)
 │   │   ├── layout/         # Layout specific components (Header, ThemeProvider, etc.)
 │   │   ├── sections/       # Page sections (Hero, Projects, Skills)
 │   │   └── ui/             # ShadCN UI components
 │   ├── hooks/              # Custom React hooks
 │   ├── lib/                # Utility functions, data definitions, Prisma client, validators
-│   │   ├── data.ts         # Static data examples, interfaces
+│   │   ├── data.ts         # Static data examples, interfaces (used for seeding)
 │   │   ├── prisma.ts       # Prisma client instance
 │   │   ├── utils.ts        # General utility functions
 │   │   └── validators/     # Zod validation schemas
@@ -172,11 +170,6 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
     *   Manage Experience (Create, Read, Update, Delete).
     *   Manage Skills (Create, Read, Update, Delete).
 
-## API Endpoints
-
-*   `/api/auth/...`: NextAuth.js authentication routes.
-*   Other data fetching is done directly in Server Components using Prisma.
-
 ## Deployment
 
 ### Vercel
@@ -187,11 +180,13 @@ This project is configured for easy deployment to Vercel.
 2.  **Import your project on Vercel.**
 3.  **Configure Environment Variables** in your Vercel project settings:
     *   `DATABASE_URL`: Your MongoDB Atlas connection string. Ensure the database name is included in the URI (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/yourDbName?retryWrites=true&w=majority`).
-    *   `NEXTAUTH_URL`: The canonical URL of your Vercel deployment (e.g., `https://your-project-name.vercel.app`).
+    *   `NEXTAUTH_URL`: The canonical URL of your Vercel deployment (e.g., `https://your-project-name.vercel.app`). This is automatically set by Vercel but good to be aware of.
     *   `NEXTAUTH_SECRET`: A strong, unique secret for NextAuth.js. Generate one using `openssl rand -base64 32` or an online generator.
     *   `NEXT_PUBLIC_APP_URL`: The canonical URL of your Vercel deployment (same as `NEXTAUTH_URL`).
 
-4.  **Build Command**: Vercel typically uses the `build` script from your `package.json` (`next build`). The `next build` command should automatically run `prisma generate` if it detects Prisma in your project, ensuring the Prisma Client is available. If you encounter issues with Prisma Client not being found during the build, you might need to set the Vercel build command to `prisma generate && next build`.
+4.  **Build Command**: Vercel typically uses the `build` script from your `package.json`. The current `build` script is:
+    `npm run prisma:generate && npm run prisma:dbpush && next build && npm run prisma:seed`
+    This ensures the Prisma client is generated and schema changes are pushed before the Next.js app is built, and then data is seeded. See "Database Seeding on Vercel" below for important considerations.
 
 5.  **File Uploads (Important Consideration for Production)**:
     The current project image upload implementation saves files to the local `public/uploads/` directory. This approach **will not work reliably on Vercel's serverless environment** because its filesystem is ephemeral (temporary). Uploaded files will be lost after a deployment or when the serverless function instance recycles.
@@ -203,7 +198,22 @@ This project is configured for easy deployment to Vercel.
 
     You will need to modify the project image upload logic in `src/app/admin/projects/actions.ts` to upload files to your chosen cloud provider and store the returned URL in the database, instead of saving locally.
 
-6.  **Deploy!**
+6.  **Database Seeding on Vercel**:
+    The `build` script in `package.json` (`npm run prisma:generate && npm run prisma:dbpush && next build && npm run prisma:seed`) now includes steps to push schema changes and seed your database on every Vercel deployment.
+    *   **How it works**: When Vercel builds your application, it will execute these commands. It uses the `DATABASE_URL` you set in Vercel's environment variables.
+    *   **Idempotency**: Your `prisma/seed.ts` script uses `upsert` operations, which means it will create data if it doesn't exist and update it if it does (based on unique identifiers like project `slug` or user `email`). This makes it generally safe to run multiple times.
+    *   **Implications**:
+        *   The seed script runs on **every deployment**. If you modify data in `src/lib/data.ts` (which your seed script uses), these changes will be applied to your production database on the next deployment.
+        *   If schema changes are made (`prisma/schema.prisma`), `prisma db push` will attempt to apply them.
+    *   **Recommendation for One-Time Seeding**: For a typical portfolio, you usually only need to seed the database once with initial content (like the admin user and sample projects). After your first successful deployment and seed on Vercel:
+        *   You might want to **remove `&& npm run prisma:seed`** from the `build` command in `package.json` for subsequent deployments to prevent re-seeding every time.
+        *   You might also consider removing `&& npm run prisma:dbpush` if your database schema becomes stable, to avoid running it on every build.
+    *   **Alternative - Manual Seeding**: For more control, especially for the initial seed or major data changes, you can run the seed script manually from your local machine, configured to point to your production MongoDB Atlas database. To do this:
+        1.  Temporarily set your local `.env.local` file's `DATABASE_URL` to your production MongoDB connection string.
+        2.  Run `npm run prisma:seed` locally.
+        3.  **Important**: Revert your local `DATABASE_URL` back to your development database URI afterward. Ensure your IP is whitelisted in MongoDB Atlas if you do this.
+
+7.  **Deploy!**
 
 ## Future Enhancements Planned
 
@@ -224,4 +234,3 @@ This is a personal portfolio project. However, if you have suggestions or find i
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 ```
 *(You would need to create a `LICENSE.md` file with the MIT license text if you choose to include this section).*
-
