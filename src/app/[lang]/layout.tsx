@@ -10,15 +10,10 @@ import { languages, defaultNS } from '@/app/i18n/settings';
 import { GeistSans } from 'geist/font/sans'; // Corrected import name
 import { GeistMono } from 'geist/font/mono'; // Corrected import name
 
-const geistSans = GeistSans({ // Corrected usage
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = GeistMono({ // Corrected usage
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+// Removed incorrect font object instantiations:
+// const geistSans = GeistSans({ ... });
+// const geistMono = GeistMono({ ... });
+// GeistSans and GeistMono imported above are already the font objects.
 
 export async function generateStaticParams() {
   return languages.map((lang) => ({ lang }));
@@ -45,7 +40,7 @@ export default async function RootLayout({
   const { resources } = await initTranslations(lang, i18nNamespaces);
 
   return (
-    <html lang={lang} suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang={lang} suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className={`antialiased font-sans bg-background text-foreground`}>
         <TranslationsProvider
           locale={lang}
