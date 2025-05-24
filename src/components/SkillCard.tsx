@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Target, Database, Server, Smartphone, Wrench, Palette, type LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { defaultNS } from '@/app/i18n/settings';
 
-const categoryIcons: Record<string, LucideIcon> = { // Use string for key as skill.category is string
+const categoryIcons: Record<string, LucideIcon> = { 
   Frontend: Palette,
   Backend: Database,
   DevOps: Server,
@@ -18,10 +20,10 @@ const categoryIcons: Record<string, LucideIcon> = { // Use string for key as ski
 
 interface SkillCardProps {
   skill: SkillType;
-  t: (key: string, fallback?: string) => string;
 }
 
-export default function SkillCard({ skill, t }: SkillCardProps) {
+export default function SkillCard({ skill }: SkillCardProps) {
+  const { t } = useTranslation(defaultNS);
   const Icon = categoryIcons[skill.category] || Target;
 
   return (

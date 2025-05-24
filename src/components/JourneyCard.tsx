@@ -10,14 +10,16 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, CalendarDays } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { defaultNS } from '@/app/i18n/settings';
 
 interface JourneyCardProps {
   item: JourneyItemType;
   index: number;
-  t: (key: string, fallback?: string) => string;
 }
 
-export default function JourneyCard({ item, index, t }: JourneyCardProps) {
+export default function JourneyCard({ item, index }: JourneyCardProps) {
+  const { t } = useTranslation(defaultNS); // Use hook for translations
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
