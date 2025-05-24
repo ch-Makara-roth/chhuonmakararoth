@@ -1,7 +1,9 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { Header } from '@/components/layout/Header';
+// import { Header } from '@/components/layout/Header'; // Replaced by AppHeader
+import { AppHeader } from '@/components/layout/AppHeader';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 
@@ -34,7 +36,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Header />
+          <AppHeader />
           <main>{children}</main>
           <Toaster />
         </ThemeProvider>
