@@ -1,6 +1,6 @@
 // src/app/i18n.ts
 import { createInstance, type i18n as I18nInstanceType } from 'i18next';
-import { initReactI18next } from 'react-i18next/server';
+import { initReactI18next } from 'react-i18next'; // Corrected import for general use
 import resourcesToBackend from 'i18next-resources-to-backend';
 import { getOptions, defaultNS } from './i18n/settings';
 

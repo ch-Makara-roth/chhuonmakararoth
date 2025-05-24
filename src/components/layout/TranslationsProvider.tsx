@@ -1,9 +1,9 @@
 'use client';
 
-import { I18nextProvider, appWithTranslation } from 'react-i18next';
+import { I18nextProvider } from 'react-i18next'; // appWithTranslation is not needed here
 import { type ReactNode, useEffect, useState } from 'react';
 import { createInstance, type i18n } from 'i18next';
-import { initReactI18next } from 'react-i18next/initReactI18next'; // For client
+import { initReactI18next } from 'react-i18next'; // Corrected: use general initReactI18next
 import resourcesToBackend from 'i18next-resources-to-backend';
 import { getOptions } from '@/app/i18n/settings';
 
@@ -29,10 +29,10 @@ export default function TranslationsProvider({
       return globalInstance;
     }
     const newInstance = createInstance();
-    newInstance.use(initReactI18next).init({
+    newInstance.use(initReactI18next).init({ // Use initReactI18next from 'react-i18next'
       ...getOptions(locale, namespaces),
-      resources: resources || undefined, // if resources provided, use them
-      lng: locale, // ensure lng is set
+      resources: resources || undefined, 
+      lng: locale, 
     });
     globalInstance = newInstance;
     return newInstance;
@@ -41,12 +41,11 @@ export default function TranslationsProvider({
   useEffect(() => {
     if (instance.language !== locale || (resources && instance.services.resourceStore.data !== resources) ) {
       const newInstance = createInstance();
-      newInstance.use(initReactI18next).init({
+      newInstance.use(initReactI18next).init({ // Use initReactI18next from 'react-i18next'
          ...getOptions(locale, namespaces),
         resources: resources || undefined,
         lng: locale,
       }, () => {
-        // Callback after init to ensure resources are loaded if not pre-provided
         if (!resources) {
           newInstance.use(resourcesToBackend((language: string, namespace: string) =>
             import(`@/app/i18n/locales/${language}/${namespace}.json`)));
@@ -59,10 +58,25 @@ export default function TranslationsProvider({
   }, [locale, namespaces, resources]);
 
 
-  if (!instance.isInitialized) {
-     // Fallback for when instance is not ready, or render children optimistically
-     // This might show untranslated content briefly if resources are fetched async client-side
-     // For server-provided resources, it should be initialized.
+  if (!instance.isInitialized && !resources) { // If no resources, it might still be initializing via backend
+     const init = async () => {
+        const newInstance = createInstance();
+        await newInstance.use(initReactI18next).init({ // Use initReactI18next from 'react-i18next'
+            ...getOptions(locale, namespaces),
+            lng: locale,
+        });
+        // Load resources if not pre-provided, for client-side case
+        await newInstance.use(resourcesToBackend((language: string, namespace: string) =>
+            import(`@/app/i18n/locales/${language}/${namespace}.json`))).loadNamespaces(namespaces);
+
+        setInstance(newInstance);
+        globalInstance = newInstance;
+    };
+    init(); 
+    return null; 
+  }
+  
+  if (!instance.isInitialized && resources) { // If resources provided, it should be initialized
     const init = async () => {
         const newInstance = createInstance();
         await newInstance.use(initReactI18next).init({
@@ -73,7 +87,7 @@ export default function TranslationsProvider({
         setInstance(newInstance);
         globalInstance = newInstance;
     };
-    if (resources) init(); // Initialize if resources are available
+    init();
     return null; // Or a loading skeleton
   }
   
