@@ -25,7 +25,7 @@ async function getExperienceDirectly(): Promise<Experience[]> {
   try {
     const experiences = await prisma.experience.findMany({
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'desc', // Or another field if you prefer, e.g., a custom 'order' or 'startDate'
       },
     });
     return experiences;
