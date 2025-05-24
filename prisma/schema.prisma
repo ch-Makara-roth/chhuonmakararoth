@@ -1,17 +1,18 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-/*
 model Project {
   id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  slug             String   // Potential @unique field
+  slug             String   @unique // Added @unique constraint
   title            String
   shortDescription String
   description      String
@@ -21,11 +22,13 @@ model Project {
   repoLink         String?
   startDate        String
   endDate          String?
-  detailsImages    String[] // Changed from String[]?
-  features         String[] // Changed from String[]?
+  detailsImages    String[] @default([]) // Added default empty array
+  features         String[] @default([]) // Added default empty array
   dataAiHint       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@map("projects") // Optional: specify collection name
 }
 
 model Experience {
@@ -34,18 +37,21 @@ model Experience {
   title       String
   company     String?
   description String
-  tags        String[] // Changed from String[]?
+  tags        String[] @default([]) // Added default empty array
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("experiences") // Optional: specify collection name
 }
-*/
 
 model Skill {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  name         String
-  proficiency  Int
-  technologies String[] // Changed from String[]?
+  name         String   @unique // Added @unique constraint for skill names
+  proficiency  Int      @db.Int // Ensure it's treated as integer
+  technologies String[] @default([]) // Added default empty array
   category     String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@map("skills") // Optional: specify collection name
 }
