@@ -10,7 +10,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "dotenv -e .env.local -- prisma generate",
+    "prisma:dbpush": "dotenv -e .env.local -- prisma db push",
+    "prisma:studio": "dotenv -e .env.local -- prisma studio"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -63,6 +65,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv-cli": "^7.4.2",
     "genkit-cli": "^1.8.0",
     "postcss": "^8",
     "prisma": "^5.17.0",
