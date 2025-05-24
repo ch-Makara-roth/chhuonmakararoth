@@ -1,28 +1,22 @@
 
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/mongodb';
-import type { Project } from '@/lib/data';
-import { type Collection, type WithId } from 'mongodb';
+import { prisma } from '@/lib/prisma';
+import type { Project } from '@/lib/data'; // Keep this for type consistency if needed elsewhere
 
 export async function GET() {
   try {
-    const db = await getDb();
-    // Define the type for documents in MongoDB, excluding 'id' as it's derived from '_id'
-    const projectsCollection: Collection<Omit<Project, 'id'>> = db.collection('projects');
-    
-    const projectsFromDb = await projectsCollection.find({}).sort({ startDate: -1 }).toArray(); // Example sort
-
-    const projects: Project[] = projectsFromDb.map((p: WithId<Omit<Project, 'id'>>) => {
-      const { _id, ...rest } = p;
-      return {
-        ...rest,
-        id: _id.toString(),
-      };
+    const projects: Project[] = await prisma.project.findMany({
+      orderBy: {
+        // Assuming you want to sort by a date field.
+        // If startDate is a string like "Jan 2023", direct sorting might be tricky.
+        // For robust sorting, consider storing dates as ISO strings or Unix timestamps.
+        // For now, let's assume we might sort by createdAt or another field.
+        createdAt: 'desc', // Example: Sort by creation date
+      },
     });
-
     return NextResponse.json(projects);
   } catch (error: any) {
-    console.error('Failed to fetch projects from MongoDB:', error);
+    console.error('Failed to fetch projects from MongoDB via Prisma:', error);
     return NextResponse.json(
       { message: 'Failed to fetch projects', error: error.message },
       { status: 500 }

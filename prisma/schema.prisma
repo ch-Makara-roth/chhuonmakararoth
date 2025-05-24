@@ -1,0 +1,61 @@
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Project {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  slug             String    @unique
+  title            String
+  shortDescription String
+  description      String
+  imageUrl         String
+  technologies     String[]
+  liveLink         String?
+  repoLink         String?
+  startDate        String
+  endDate          String?
+  detailsImages    String[]  @default([])
+  features         String[]  @default([])
+  dataAiHint       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Experience {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  date        String
+  title       String
+  company     String?
+  description String
+  tags        String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SkillCategory {
+  Frontend
+  Backend
+  DevOps
+  Mobile
+  Tools
+  Other
+}
+
+model Skill {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String        @unique
+  proficiency  Int
+  technologies String[]      @default([])
+  category     SkillCategory
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
