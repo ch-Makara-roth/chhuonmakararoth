@@ -64,3 +64,4 @@ export async function createSkill(formData: SkillFormData) {
   revalidatePath('/admin/skills');
   redirect('/admin/skills');
 }
+

@@ -12,3 +12,4 @@ export const skillFormSchema = z.object({
 });
 
 export type SkillFormData = z.infer<typeof skillFormSchema>;
+

@@ -143,3 +143,4 @@ export default function SkillForm({ skill, onSubmitAction, formType }: SkillForm
     </Card>
   );
 }
+

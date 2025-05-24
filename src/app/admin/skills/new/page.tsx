@@ -23,3 +23,4 @@ export default function NewSkillPage() {
 }
 
 export const dynamic = 'force-dynamic'; // Ensure server actions work correctly
+
