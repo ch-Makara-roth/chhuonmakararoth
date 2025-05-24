@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { languages } from '@/app/i18n/settings';
 
 function getApiBaseUrl(): string {
-  let apiUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-  // Replace localhost with 127.0.0.1 for server-side fetch in Node.js to avoid potential IPv6/SSL issues
-  if (apiUrl.startsWith('http://localhost')) {
-    apiUrl = apiUrl.replace('http://localhost', 'http://127.0.0.1');
-  }
-  return apiUrl;
+  // For server-side rendering (which these admin pages are),
+  // we should always try to hit the internal address of the Next.js server.
+  // The port 9002 is from your package.json dev script.
+  // In a real production environment, you might use `process.env.PORT` if it's set by the host.
+  const port = process.env.PORT || '9002';
+  return `http://127.0.0.1:${port}`;
 }
 
 async function getProjects(): Promise<Project[]> {
@@ -24,11 +24,13 @@ async function getProjects(): Promise<Project[]> {
     throw new Error(`Failed to fetch projects from ${apiPath}. Status: ${res.status}, Response: ${errorText}`);
   }
   try {
-    return await res.json();
+    const jsonData = await res.json();
+    return jsonData;
   } catch (e: any) {
     console.error(`Failed to parse JSON from ${apiPath}:`, e.message);
-    const errorText = await res.text(); // Get text again if json parsing failed
-    throw new Error(`Failed to parse JSON from ${apiPath}. Error: ${e.message}. Response body: ${errorText}`);
+    // Attempt to get the text response if JSON parsing fails, to help debugging
+    const responseText = await fetch(apiPath, { cache: 'no-store' }).then(r => r.text()).catch(() => "Could not retrieve error body.");
+    throw new Error(`Failed to parse JSON from ${apiPath}. Error: ${e.message}. Response body: ${responseText}`);
   }
 }
 
@@ -51,8 +53,8 @@ export default async function AdminProjectsPage({ params: { lang } }: AdminProje
   }
 
   if (error) {
-    const baseUrl = getApiBaseUrl();
-    const apiPathForErrorMessage = `${baseUrl}/api/projects`;
+    // getApiBaseUrl() is already defined in this file.
+    const apiPathForErrorMessage = `${getApiBaseUrl()}/api/projects`;
     return (
       <div className="text-destructive-foreground bg-destructive p-4 rounded-md">
         <h2 className="text-xl font-semibold">Error Fetching Projects</h2>
