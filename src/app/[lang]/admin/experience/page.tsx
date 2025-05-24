@@ -8,6 +8,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 
 function getApiUrl(path: string): string {
   let baseUrl = APP_URL;
+  // When running locally and APP_URL is localhost, fetch might default to IPv6.
+  // Explicitly use 127.0.0.1 (IPv4) to avoid potential SSL/connection errors in some Node.js versions.
   if (baseUrl.includes('localhost')) {
     baseUrl = baseUrl.replace('localhost', '127.0.0.1');
   }
@@ -49,7 +51,7 @@ export default async function AdminExperiencePage({ params: { lang } }: AdminExp
       <div className="text-destructive-foreground bg-destructive p-4 rounded-md">
         <h2 className="text-xl font-semibold">Error Fetching Experience Data</h2>
         <p>{error}</p>
-        <p>Please ensure the API endpoint at <code className="text-sm bg-destructive-foreground/20 px-1 rounded">{apiUrlForErrorMessage}</code> is running and accessible.</p>
+        <p>Please ensure the API endpoint at <code className="text-sm bg-destructive-foreground/20 px-1 rounded">{apiUrlForErrorMessage}</code> is running and accessible, and your database is correctly configured and seeded.</p>
       </div>
     );
   }
@@ -60,7 +62,7 @@ export default async function AdminExperiencePage({ params: { lang } }: AdminExp
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-primary">Manage Experience</h1>
         </div>
-        <p className="text-lg text-muted-foreground">No experience entries found. CRUD operations coming soon!</p>
+        <p className="text-lg text-muted-foreground">No experience entries found. CRUD operations and the ability to add entries will be implemented soon.</p>
       </div>
     );
   }
