@@ -129,6 +129,7 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 │   └── seed.ts
 ├── public/                 # Static assets (images, robots.txt, etc.)
 │   └── uploads/            # Local image uploads (for development)
+│   └── robots.txt
 ├── src/
 │   ├── ai/                 # Genkit AI flows and configuration (if used)
 │   ├── app/                # Next.js App Router
@@ -147,6 +148,11 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 │   │   ├── sections/       # Page sections (Hero, Projects, Skills)
 │   │   └── ui/             # ShadCN UI components
 │   ├── hooks/              # Custom React hooks
+│   ├── i18n/               # Internationalization configuration and locales
+│   │   ├── locales/
+│   │   │   ├── en/common.json
+│   │   │   └── km/common.json
+│   │   └── settings.ts
 │   ├── lib/                # Utility functions, data definitions, Prisma client, validators
 │   │   ├── data.ts         # Static data examples, interfaces (used for seeding)
 │   │   ├── prisma.ts       # Prisma client instance
@@ -179,16 +185,22 @@ This project is configured for easy deployment to Vercel.
 1.  **Push your code to a Git repository** (GitHub, GitLab, Bitbucket).
 2.  **Import your project on Vercel.**
 3.  **Configure Environment Variables** in your Vercel project settings:
-    *   `DATABASE_URL`: Your MongoDB Atlas connection string. Ensure the database name is included in the URI (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/yourDbName?retryWrites=true&w=majority`).
+    *   `DATABASE_URL`: Your MongoDB Atlas connection string. **Crucially, ensure the database name is included in the URI and it's correctly formatted** (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/yourDbName?retryWrites=true&w=majority`). Double-check for any typos.
     *   `NEXTAUTH_URL`: The canonical URL of your Vercel deployment (e.g., `https://your-project-name.vercel.app`). This is automatically set by Vercel but good to be aware of.
     *   `NEXTAUTH_SECRET`: A strong, unique secret for NextAuth.js. Generate one using `openssl rand -base64 32` or an online generator.
     *   `NEXT_PUBLIC_APP_URL`: The canonical URL of your Vercel deployment (same as `NEXTAUTH_URL`).
 
-4.  **Build Command**: Vercel typically uses the `build` script from your `package.json`. The current `build` script is:
+4.  **MongoDB Atlas IP Access List**:
+    *   When Vercel builds and runs your application, it uses dynamic IP addresses. The `Server selection timeout` and `Name or service not known` errors during `prisma db push` often mean your MongoDB Atlas cluster is not allowing connections from these IPs.
+    *   **To resolve this, go to your MongoDB Atlas dashboard -> Network Access -> IP Access List and add `0.0.0.0/0` (Allow Access From Anywhere).**
+    *   **Security Note**: If you allow access from anywhere, ensure your database user credentials (`username` and `password` in your `DATABASE_URL`) are very strong and unique.
+
+5.  **Build Command**: Vercel typically uses the `build` script from your `package.json`. The current `build` script is:
     `npm run prisma:generate && npm run prisma:dbpush && next build && npm run prisma:seed`
     This ensures the Prisma client is generated and schema changes are pushed before the Next.js app is built, and then data is seeded. See "Database Seeding on Vercel" below for important considerations.
+    *Note: The Prisma scripts in `package.json` have been updated to not rely on `dotenv-cli` for Vercel builds, as Vercel injects environment variables directly.*
 
-5.  **File Uploads (Important Consideration for Production)**:
+6.  **File Uploads (Important Consideration for Production)**:
     The current project image upload implementation saves files to the local `public/uploads/` directory. This approach **will not work reliably on Vercel's serverless environment** because its filesystem is ephemeral (temporary). Uploaded files will be lost after a deployment or when the serverless function instance recycles.
 
     **For production image hosting, you should use a cloud-based storage solution:**
@@ -198,7 +210,7 @@ This project is configured for easy deployment to Vercel.
 
     You will need to modify the project image upload logic in `src/app/admin/projects/actions.ts` to upload files to your chosen cloud provider and store the returned URL in the database, instead of saving locally.
 
-6.  **Database Seeding on Vercel**:
+7.  **Database Seeding on Vercel**:
     The `build` script in `package.json` (`npm run prisma:generate && npm run prisma:dbpush && next build && npm run prisma:seed`) now includes steps to push schema changes and seed your database on every Vercel deployment.
     *   **How it works**: When Vercel builds your application, it will execute these commands. It uses the `DATABASE_URL` you set in Vercel's environment variables.
     *   **Idempotency**: Your `prisma/seed.ts` script uses `upsert` operations, which means it will create data if it doesn't exist and update it if it does (based on unique identifiers like project `slug` or user `email`). This makes it generally safe to run multiple times.
@@ -213,7 +225,7 @@ This project is configured for easy deployment to Vercel.
         2.  Run `npm run prisma:seed` locally.
         3.  **Important**: Revert your local `DATABASE_URL` back to your development database URI afterward. Ensure your IP is whitelisted in MongoDB Atlas if you do this.
 
-7.  **Deploy!**
+8.  **Deploy!**
 
 ## Future Enhancements Planned
 
