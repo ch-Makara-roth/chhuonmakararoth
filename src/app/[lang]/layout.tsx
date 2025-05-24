@@ -7,15 +7,15 @@ import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import TranslationsProvider from '@/components/layout/TranslationsProvider';
 import initTranslations from '@/app/i18n';
 import { languages, defaultNS } from '@/app/i18n/settings';
-import { Geist_Sans } from 'geist/font/sans';
-import { Geist_Mono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans'; // Corrected import name
+import { GeistMono } from 'geist/font/mono'; // Corrected import name
 
-const geistSans = Geist_Sans({
+const geistSans = GeistSans({ // Corrected usage
   variable: '--font-geist-sans',
   subsets: ['latin'],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = GeistMono({ // Corrected usage
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
