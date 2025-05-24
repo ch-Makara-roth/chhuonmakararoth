@@ -4,6 +4,7 @@
 import { Button } from '@/components/ui/button';
 import { ArrowDown } from 'lucide-react';
 import Link from 'next/link';
+import type React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { defaultLocale } from '@/app/i18n/settings';
@@ -25,12 +26,11 @@ export default function HeroSection() {
 
   const initialDelayTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const animationStepTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
-  const isMountedRef = useRef(true); 
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Clear any existing timeouts from previous effect runs
     if (initialDelayTimeoutIdRef.current) {
       clearTimeout(initialDelayTimeoutIdRef.current);
       initialDelayTimeoutIdRef.current = null;
@@ -40,21 +40,20 @@ export default function HeroSection() {
       animationStepTimeoutIdRef.current = null;
     }
 
-    // Reset state when FULL_NAME changes (e.g., on language switch)
     setTypedName("");
     setShowBlinkingCursor(false);
-    setShowSubContent(false); // Reset sub-content visibility for fresh animation
+    setShowSubContent(false);
 
     initialDelayTimeoutIdRef.current = setTimeout(() => {
       if (!isMountedRef.current) return;
       setShowBlinkingCursor(true);
-      
+
       let index = 0;
-      let currentDisplayedName = ""; 
+      let currentDisplayedName = "";
       let phase: 'typing' | 'pausing_after_typing' | 'erasing' | 'pausing_after_erasing' = 'typing';
 
       const runAnimationStep = () => {
-        if (!isMountedRef.current) { 
+        if (!isMountedRef.current) {
           if (animationStepTimeoutIdRef.current) clearTimeout(animationStepTimeoutIdRef.current);
           return;
         }
@@ -68,17 +67,17 @@ export default function HeroSection() {
               index++;
               animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, TYPING_SPEED_MS);
             } else {
-              if (isMountedRef.current && !showSubContent) { 
+              if (isMountedRef.current && !showSubContent) {
                 setShowSubContent(true);
               }
               phase = 'pausing_after_typing';
-              setShowBlinkingCursor(false);
+              setShowBlinkingCursor(false); // Hide cursor during pause after typing
               animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, PAUSE_AFTER_TYPING_MS);
             }
             break;
           case 'pausing_after_typing':
             phase = 'erasing';
-            setShowBlinkingCursor(true);
+            setShowBlinkingCursor(true); // Show cursor for erasing
             animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, 0);
             break;
           case 'erasing':
@@ -95,7 +94,7 @@ export default function HeroSection() {
           case 'pausing_after_erasing':
             phase = 'typing';
             index = 0;
-            setShowBlinkingCursor(true);
+            setShowBlinkingCursor(true); // Show cursor for typing
             animationStepTimeoutIdRef.current = setTimeout(runAnimationStep, 0);
             break;
         }
@@ -116,14 +115,35 @@ export default function HeroSection() {
         animationStepTimeoutIdRef.current = null;
       }
     };
-  }, [FULL_NAME]); // Effect depends only on FULL_NAME
+  }, [FULL_NAME]);
 
   const getLocalizedPath = (path: string) => {
     if (path.startsWith('#')) {
-        return currentLang === defaultLocale ? path : `/${currentLang}${path}`;
+      return currentLang === defaultLocale ? path : `/${currentLang}${path}`;
     }
     const normalizedPath = path === '/' ? '' : path;
     return currentLang === defaultLocale ? (normalizedPath || '/') : `/${currentLang}${normalizedPath || ''}`;
+  };
+
+  const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, hrefAttributeValue: string) => {
+    e.preventDefault();
+    const fullUrl = new URL(hrefAttributeValue, window.location.origin);
+    const targetId = fullUrl.hash.substring(1);
+    const targetPathForURLUpdate = currentLang === defaultLocale ?
+      (fullUrl.hash || '/') :
+      (`/${currentLang}` + (fullUrl.hash || (fullUrl.pathname === `/${currentLang}` ? '' : fullUrl.pathname.replace(`/${currentLang}`, ''))));
+
+    if (targetId) {
+      const element = document.getElementById(targetId);
+      if (element) {
+        element.scrollIntoView({
+          behavior: 'smooth',
+        });
+        if (window.location.pathname + window.location.hash !== targetPathForURLUpdate) {
+            window.history.pushState({}, '', targetPathForURLUpdate);
+        }
+      }
+    }
   };
 
   return (
@@ -151,12 +171,27 @@ export default function HeroSection() {
               {t('hero.tagline')}
             </p>
             <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center items-center gap-4 animate-in fade-in slide-in-from-bottom-14 duration-700">
-              <Button asChild size="lg" className="shadow-lg hover:shadow-primary/50 transition-shadow">
-                <Link href={getLocalizedPath('/#projects')}>{t('hero.viewWork')}</Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="shadow-sm hover:shadow-accent/30 transition-shadow">
-                <Link href={getLocalizedPath('/#journey')}>{t('hero.myJourney')} <ArrowDown className="ml-2 h-4 w-4" /></Link>
-              </Button>
+              <Link href={getLocalizedPath('/#projects')} passHref legacyBehavior>
+                <Button 
+                  asChild 
+                  size="lg" 
+                  className="shadow-lg hover:shadow-primary/50 transition-shadow"
+                  onClick={(e) => handleSmoothScroll(e as unknown as React.MouseEvent<HTMLAnchorElement>, getLocalizedPath('/#projects'))}
+                >
+                  <a>{t('hero.viewWork')}</a>
+                </Button>
+              </Link>
+              <Link href={getLocalizedPath('/#journey')} passHref legacyBehavior>
+                <Button 
+                  asChild 
+                  variant="outline" 
+                  size="lg" 
+                  className="shadow-sm hover:shadow-accent/30 transition-shadow"
+                  onClick={(e) => handleSmoothScroll(e as unknown as React.MouseEvent<HTMLAnchorElement>, getLocalizedPath('/#journey'))}
+                >
+                  <a>{t('hero.myJourney')} <ArrowDown className="ml-2 h-4 w-4" /></a>
+                </Button>
+              </Link>
             </div>
           </>
         )}
