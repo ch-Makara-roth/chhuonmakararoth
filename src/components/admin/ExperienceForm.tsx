@@ -11,21 +11,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import type { Experience } from '@prisma/client';
-
-type ExperienceActionResponse = {
-  success: boolean;
-  message: string;
-  errors: Partial<Record<keyof ExperienceFormData, string[]>> | null;
-};
+import { useRouter } from 'next/navigation';
+import type { ExperienceActionResponse } from '@/app/admin/experience/actions';
 
 interface ExperienceFormProps {
   experience?: Experience | null;
-  onSubmitAction: (data: ExperienceFormData) => Promise<ExperienceActionResponse>;
   formType: 'create' | 'edit';
+  onSubmitAction: (data: ExperienceFormData) => Promise<ExperienceActionResponse> | ((id: string, data: ExperienceFormData) => Promise<ExperienceActionResponse>);
 }
 
 export default function ExperienceForm({ experience, onSubmitAction, formType }: ExperienceFormProps) {
   const { toast } = useToast();
+  const router = useRouter();
 
   const defaultValues: Partial<ExperienceFormData> = {
     title: experience?.title || '',
@@ -43,12 +40,19 @@ export default function ExperienceForm({ experience, onSubmitAction, formType }:
   const {formState: {isSubmitting}} = form;
 
   async function onSubmit(data: ExperienceFormData) {
-    const result = await onSubmitAction(data);
+    let result: ExperienceActionResponse;
+    if (formType === 'edit' && experience?.id) {
+      result = await (onSubmitAction as (id: string, data: ExperienceFormData) => Promise<ExperienceActionResponse>)(experience.id, data);
+    } else {
+      result = await (onSubmitAction as (data: ExperienceFormData) => Promise<ExperienceActionResponse>)(data);
+    }
+
     if (result.success) {
       toast({
         title: formType === 'create' ? 'Experience Entry Created' : 'Experience Entry Updated',
         description: result.message,
       });
+      router.push('/admin/experience');
     } else {
       toast({
         title: 'Error',
@@ -70,7 +74,7 @@ export default function ExperienceForm({ experience, onSubmitAction, formType }:
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{formType === 'create' ? 'Create New Experience Entry' : 'Edit Experience Entry'}</CardTitle>
+        <CardTitle>{formType === 'create' ? 'Create New Experience Entry' : `Edit Experience: ${experience?.title || ''}`}</CardTitle>
         <CardDescription>
           {formType === 'create' ? 'Fill in the details for the new experience entry.' : 'Update the experience entry details.'}
         </CardDescription>

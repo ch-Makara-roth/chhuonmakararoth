@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -14,13 +13,16 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Edit } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import DeleteConfirmationDialog from '@/components/admin/DeleteConfirmationDialog';
+import { deleteProject } from './actions';
+import { revalidatePath } from 'next/cache';
 
 async function getProjectsDirectly(): Promise<Project[]> {
   try {
@@ -45,6 +47,10 @@ export default async function AdminProjectsPage() {
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }
+
+  const handlePostDelete = () => {
+    revalidatePath('/admin/projects');
+  };
 
   if (error) {
     return (
@@ -112,13 +118,26 @@ export default async function AdminProjectsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem disabled>
-                            <Edit className="mr-2 h-4 w-4" />
-                            <span>Edit</span>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/admin/projects/edit/${project.id}`} className="flex items-center cursor-pointer">
+                              <Edit className="mr-2 h-4 w-4" />
+                              <span>Edit</span>
+                            </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem disabled className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Delete</span>
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10 p-0"
+                            onSelect={(e) => e.preventDefault()} // Prevent closing menu before dialog
+                          >
+                            <DeleteConfirmationDialog
+                              itemId={project.id}
+                              itemName={project.title}
+                              deleteAction={deleteProject}
+                              onDeleteSuccess={handlePostDelete}
+                              triggerButtonVariant="ghost"
+                              triggerButtonSize="sm"
+                              triggerButtonText="Delete"
+                              showIcon={true}
+                            />
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

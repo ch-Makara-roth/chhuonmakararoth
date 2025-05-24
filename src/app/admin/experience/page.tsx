@@ -1,5 +1,4 @@
-
-import type { Experience } from '@prisma/client'; // Assuming Experience model from Prisma
+import type { Experience } from '@prisma/client'; 
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Edit, Trash2, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, Edit, PlusCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,17 +19,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from 'next/link';
+import DeleteConfirmationDialog from '@/components/admin/DeleteConfirmationDialog';
+import { deleteExperience } from './actions';
+import { revalidatePath } from 'next/cache';
+
 
 async function getExperienceDirectly(): Promise<Experience[]> {
   try {
     const experiences = await prisma.experience.findMany({
       orderBy: {
-        // Consider adding a specific field for ordering, e.g., a startDate field or a custom 'order' field.
-        // For now, sorting by createdAt might be newest first.
-        // If 'date' field is consistently formatted (e.g. YYYY-MM), you might sort by it descending.
-        // For example: orderBy: { date: 'desc' } if 'date' represents start date.
-        // For simplicity, let's assume createdAt for now.
-        createdAt: 'desc',
+        createdAt: 'desc', 
       },
     });
     return experiences;
@@ -49,6 +47,10 @@ export default async function AdminExperiencePage() {
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }
+
+  const handlePostDelete = () => {
+    revalidatePath('/admin/experience');
+  };
 
   if (error) {
     return (
@@ -114,13 +116,26 @@ export default async function AdminExperiencePage() {
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled>
-                                <Edit className="mr-2 h-4 w-4" />
-                                <span>Edit</span>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/admin/experience/edit/${item.id}`} className="flex items-center cursor-pointer">
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    <span>Edit</span>
+                                </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Delete</span>
+                            <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10 p-0"
+                                onSelect={(e) => e.preventDefault()}
+                            >
+                                <DeleteConfirmationDialog
+                                    itemId={item.id}
+                                    itemName={item.title}
+                                    deleteAction={deleteExperience}
+                                    onDeleteSuccess={handlePostDelete}
+                                    triggerButtonVariant="ghost"
+                                    triggerButtonSize="sm"
+                                    triggerButtonText="Delete"
+                                    showIcon={true}
+                                />
                             </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -135,7 +150,6 @@ export default async function AdminExperiencePage() {
                 <p className="text-sm text-muted-foreground">
                     Total {experiences.length} experience(s).
                 </p>
-                {/* Placeholder for pagination */}
             </CardFooter>
             )}
         </Card>

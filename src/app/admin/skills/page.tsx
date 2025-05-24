@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { MoreHorizontal, Edit, Trash2, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, Edit, PlusCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,14 +21,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from 'next/link';
+import DeleteConfirmationDialog from '@/components/admin/DeleteConfirmationDialog';
+import { deleteSkill } from './actions';
+import { revalidatePath } from 'next/cache';
 
 async function getSkillsDirectly(): Promise<Skill[]> {
   try {
     const skills = await prisma.skill.findMany({
       orderBy: [
-        { category: 'asc' }, // Primary sort by category
-        { proficiency: 'desc' }, // Secondary sort by proficiency
-        { name: 'asc' }, // Tertiary sort by name
+        { category: 'asc' }, 
+        { proficiency: 'desc' }, 
+        { name: 'asc' }, 
       ],
     });
     return skills;
@@ -47,6 +50,10 @@ export default async function AdminSkillsPage() {
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }
+  
+  const handlePostDelete = () => {
+    revalidatePath('/admin/skills');
+  };
 
   if (error) {
     return (
@@ -117,13 +124,26 @@ export default async function AdminSkillsPage() {
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled>
-                                <Edit className="mr-2 h-4 w-4" />
-                                <span>Edit</span>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/admin/skills/edit/${skill.id}`} className="flex items-center cursor-pointer">
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    <span>Edit</span>
+                                </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Delete</span>
+                            <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10 p-0"
+                                onSelect={(e) => e.preventDefault()}
+                            >
+                                <DeleteConfirmationDialog
+                                    itemId={skill.id}
+                                    itemName={skill.name}
+                                    deleteAction={deleteSkill}
+                                    onDeleteSuccess={handlePostDelete}
+                                    triggerButtonVariant="ghost"
+                                    triggerButtonSize="sm"
+                                    triggerButtonText="Delete"
+                                    showIcon={true}
+                                />
                             </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -138,7 +158,6 @@ export default async function AdminSkillsPage() {
                 <p className="text-sm text-muted-foreground">
                     Total {skills.length} skill(s).
                 </p>
-                {/* Placeholder for pagination */}
             </CardFooter>
             )}
         </Card>
@@ -148,4 +167,3 @@ export default async function AdminSkillsPage() {
 }
 
 export const dynamic = 'force-dynamic';
-

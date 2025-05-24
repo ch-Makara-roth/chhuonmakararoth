@@ -10,21 +10,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import type { Skill } from '@prisma/client';
-
-type SkillActionResponse = {
-  success: boolean;
-  message: string;
-  errors: Partial<Record<keyof SkillFormData, string[]>> | null;
-};
+import { useRouter } from 'next/navigation';
+import type { SkillActionResponse } from '@/app/admin/skills/actions';
 
 interface SkillFormProps {
   skill?: Skill | null;
-  onSubmitAction: (data: SkillFormData) => Promise<SkillActionResponse>;
   formType: 'create' | 'edit';
+  onSubmitAction: (data: SkillFormData) => Promise<SkillActionResponse> | ((id: string, data: SkillFormData) => Promise<SkillActionResponse>);
 }
 
 export default function SkillForm({ skill, onSubmitAction, formType }: SkillFormProps) {
   const { toast } = useToast();
+  const router = useRouter();
 
   const defaultValues: Partial<SkillFormData> = {
     name: skill?.name || '',
@@ -42,12 +39,19 @@ export default function SkillForm({ skill, onSubmitAction, formType }: SkillForm
   const { formState: { isSubmitting } } = form;
 
   async function onSubmit(data: SkillFormData) {
-    const result = await onSubmitAction(data);
+    let result: SkillActionResponse;
+    if (formType === 'edit' && skill?.id) {
+      result = await (onSubmitAction as (id: string, data: SkillFormData) => Promise<SkillActionResponse>)(skill.id, data);
+    } else {
+      result = await (onSubmitAction as (data: SkillFormData) => Promise<SkillActionResponse>)(data);
+    }
+
     if (result.success) {
       toast({
         title: formType === 'create' ? 'Skill Created' : 'Skill Updated',
         description: result.message,
       });
+      router.push('/admin/skills');
     } else {
       toast({
         title: 'Error',
@@ -69,7 +73,7 @@ export default function SkillForm({ skill, onSubmitAction, formType }: SkillForm
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{formType === 'create' ? 'Create New Skill' : 'Edit Skill'}</CardTitle>
+        <CardTitle>{formType === 'create' ? 'Create New Skill' : `Edit Skill: ${skill?.name || ''}`}</CardTitle>
         <CardDescription>
           {formType === 'create' ? 'Fill in the details for the new skill.' : 'Update the skill details.'}
         </CardDescription>

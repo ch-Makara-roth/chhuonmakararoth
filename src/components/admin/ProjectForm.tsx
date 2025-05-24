@@ -10,22 +10,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import type { Project } from '@prisma/client';
-
-type ProjectActionResponse = {
-  success: boolean;
-  message: string;
-  errors: Partial<Record<keyof ProjectFormData, string[]>> | null;
-};
+import type { Project } from '@prisma/client'; // Prisma's Project type
+import { useRouter } from 'next/navigation'; // For redirecting after create/update
+import type { ProjectActionResponse } from '@/app/admin/projects/actions';
 
 interface ProjectFormProps {
-  project?: Project | null;
-  onSubmitAction: (data: ProjectFormData) => Promise<ProjectActionResponse>;
+  project?: Project | null; // For pre-filling the form in edit mode
   formType: 'create' | 'edit';
+  // Adjust onSubmitAction to reflect the potentially different signatures
+  onSubmitAction: (data: ProjectFormData) => Promise<ProjectActionResponse> | ((id: string, data: ProjectFormData) => Promise<ProjectActionResponse>);
 }
 
-export default function ProjectForm({ project, onSubmitAction, formType }: ProjectFormProps) {
+export default function ProjectForm({ project, formType, onSubmitAction }: ProjectFormProps) {
   const { toast } = useToast();
+  const router = useRouter();
 
   const defaultValues: Partial<ProjectFormData> = {
     title: project?.title || '',
@@ -48,15 +46,23 @@ export default function ProjectForm({ project, onSubmitAction, formType }: Proje
     defaultValues,
   });
 
-  const {formState: {isSubmitting}} = form;
+  const { formState: { isSubmitting } } = form;
 
   async function onSubmit(data: ProjectFormData) {
-    const result = await onSubmitAction(data);
+    let result: ProjectActionResponse;
+    if (formType === 'edit' && project?.id) {
+      result = await (onSubmitAction as (id: string, data: ProjectFormData) => Promise<ProjectActionResponse>)(project.id, data);
+    } else {
+      result = await (onSubmitAction as (data: ProjectFormData) => Promise<ProjectActionResponse>)(data);
+    }
+
     if (result.success) {
       toast({
         title: formType === 'create' ? 'Project Created' : 'Project Updated',
         description: result.message,
       });
+      router.push('/admin/projects'); // Redirect to list page on success
+      // router.refresh(); // Not always needed due to revalidatePath in action, but can ensure client state sync
     } else {
       toast({
         title: 'Error',
@@ -78,7 +84,7 @@ export default function ProjectForm({ project, onSubmitAction, formType }: Proje
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{formType === 'create' ? 'Create New Project' : 'Edit Project'}</CardTitle>
+        <CardTitle>{formType === 'create' ? 'Create New Project' : `Edit Project: ${project?.title || ''}`}</CardTitle>
         <CardDescription>
           {formType === 'create' ? 'Fill in the details for the new project.' : 'Update the project details.'}
         </CardDescription>
@@ -105,11 +111,15 @@ export default function ProjectForm({ project, onSubmitAction, formType }: Proje
               name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Slug (Optional)</FormLabel>
+                  <FormLabel>Slug</FormLabel>
                   <FormControl>
-                    <Input placeholder="project-slug (auto-generated if empty)" {...field} />
+                    <Input placeholder="project-slug (auto-generated if empty and creating)" {...field} />
                   </FormControl>
-                  <FormDescription>Lowercase alphanumeric characters and hyphens only.</FormDescription>
+                  <FormDescription>
+                    {formType === 'create' 
+                      ? "Leave empty to auto-generate from title. Must be unique, lowercase alphanumeric with hyphens."
+                      : "Must be unique, lowercase alphanumeric with hyphens. Modifying slugs can affect SEO."}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
