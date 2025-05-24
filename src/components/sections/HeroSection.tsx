@@ -6,7 +6,6 @@ import { ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'next/navigation';
 import { defaultLocale } from '@/app/i18n/settings';
 
 const TYPING_SPEED_MS = 100;
@@ -16,9 +15,9 @@ const PAUSE_AFTER_ERASING_MS = 500;
 const START_TYPING_DELAY_MS = 1000;
 
 export default function HeroSection() {
-  const params = useParams();
-  const lang = typeof params.lang === 'string' ? params.lang : defaultLocale;
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  // Use i18n.language as the source of truth for the current language
+  const currentLang = i18n.language;
   const FULL_NAME = t('hero.name');
 
   const [typedName, setTypedName] = useState("");
@@ -92,10 +91,10 @@ export default function HeroSection() {
 
   const getLocalizedPath = (path: string) => {
     if (path.startsWith('#')) { // Handle hash links
-        return lang === defaultLocale ? path : `/${lang}${path}`;
+        return currentLang === defaultLocale ? path : `/${currentLang}${path}`;
     }
     const normalizedPath = path === '/' ? '' : path;
-    return lang === defaultLocale ? (normalizedPath || '/') : `/${lang}${normalizedPath || ''}`;
+    return currentLang === defaultLocale ? (normalizedPath || '/') : `/${currentLang}${normalizedPath || ''}`;
   };
 
   return (

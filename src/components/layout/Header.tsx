@@ -5,21 +5,19 @@ import { ThemeSwitcher } from './ThemeSwitcher';
 import { CodeXml } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from './LanguageSwitcher';
-import { useParams } from 'next/navigation';
 import { defaultLocale } from '@/app/i18n/settings';
 
 export function Header() {
-  const params = useParams();
-  // lang from params is the file-system lang, e.g., 'en' or 'km'
-  const lang = typeof params.lang === 'string' ? params.lang : defaultLocale;
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  // Use i18n.language as the source of truth for the current language
+  const currentLang = i18n.language;
 
   const getLocalizedPath = (path: string) => {
     if (path.startsWith('#')) { // Handle hash links
-        return lang === defaultLocale ? path : `/${lang}${path}`;
+        return currentLang === defaultLocale ? path : `/${currentLang}${path}`;
     }
-    const normalizedPath = path === '/' ? '' : path; // for root, href should be / or /km
-    return lang === defaultLocale ? (normalizedPath || '/') : `/${lang}${normalizedPath || ''}`;
+    const normalizedPath = path === '/' ? '' : path;
+    return currentLang === defaultLocale ? (normalizedPath || '/') : `/${currentLang}${normalizedPath || ''}`;
   };
 
   return (
