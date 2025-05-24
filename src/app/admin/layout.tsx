@@ -39,9 +39,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </Link>
         </div>
       </aside>
-      <main className="flex-1 p-6 md:p-8 lg:p-10 bg-secondary/30 overflow-auto">
+      <main className="flex-1 p-6 md:p-8 lg:p-10 bg-background overflow-auto"> {/* Changed from bg-secondary/30 to bg-background */}
         {children}
       </main>
     </div>
   );
 }
+
