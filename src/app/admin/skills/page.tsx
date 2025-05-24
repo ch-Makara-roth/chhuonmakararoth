@@ -19,9 +19,18 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 //   Other: Target,
 // };
 
+function getApiUrl(path: string): string {
+  let baseUrl = APP_URL;
+  // Replace localhost with 127.0.0.1 to avoid potential IPv6/SSL issues in local dev
+  if (baseUrl.includes('localhost')) {
+    baseUrl = baseUrl.replace('localhost', '127.0.0.1');
+  }
+  return `${baseUrl}${path}`;
+}
 
 async function getSkills(): Promise<Skill[]> {
-  const res = await fetch(`${APP_URL}/api/skills`, { cache: 'no-store' });
+  const apiUrl = getApiUrl('/api/skills');
+  const res = await fetch(apiUrl, { cache: 'no-store' });
   if (!res.ok) {
     const errorText = await res.text();
     console.error('Failed to fetch skills:', res.status, errorText);
@@ -41,11 +50,12 @@ export default async function AdminSkillsPage() {
   }
 
   if (error) {
+    const apiUrlForErrorMessage = getApiUrl('/api/skills');
     return (
       <div className="text-destructive-foreground bg-destructive p-4 rounded-md">
         <h2 className="text-xl font-semibold">Error Fetching Skills</h2>
         <p>{error}</p>
-        <p>Please ensure the API endpoint at <code className="text-sm bg-destructive-foreground/20 px-1 rounded">{APP_URL}/api/skills</code> is running and accessible.</p>
+        <p>Please ensure the API endpoint at <code className="text-sm bg-destructive-foreground/20 px-1 rounded">{apiUrlForErrorMessage}</code> is running and accessible.</p>
       </div>
     );
   }
