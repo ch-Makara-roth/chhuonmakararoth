@@ -10,7 +10,7 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 *   **MongoDB Backend**: Data stored in MongoDB and accessed via Prisma ORM.
 *   **Custom Admin Panel**:
     *   Accessible at `/admin`.
-    *   Protected by email/password authentication using NextAuth.js.
+    *   Protected by email/password authentication using NextAuth.js (user stored in MongoDB).
     *   CRUD (Create, Read, Update, Delete) operations for Projects, Experience, and Skills.
     *   Image uploads for projects (local storage for development, see production notes).
 *   **ShadCN UI & Tailwind CSS**: For modern and responsive styling.
@@ -25,7 +25,7 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 *   **Styling**: Tailwind CSS, ShadCN UI
 *   **Database**: MongoDB
 *   **ORM**: Prisma
-*   **Authentication**: NextAuth.js (Credentials Provider)
+*   **Authentication**: NextAuth.js (Credentials Provider with database users)
 *   **Internationalization**: `react-i18next`, `i18next`
 *   **Deployment**: Configured for Vercel (see Deployment section)
 
@@ -246,3 +246,4 @@ This is a personal portfolio project. However, if you have suggestions or find i
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 ```
 *(You would need to create a `LICENSE.md` file with the MIT license text if you choose to include this section).*
+
