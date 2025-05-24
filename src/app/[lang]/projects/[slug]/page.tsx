@@ -1,6 +1,6 @@
 
 import { prisma } from '@/lib/prisma';
-import type { Project as ProjectType } from '@prisma/client'; // Use Prisma's generated type
+import type { Project as ProjectType } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { ArrowLeft, CalendarDays, ExternalLink, Github, ListChecks } from 'lucid
 import Link from 'next/link';
 import { languages, defaultNS, defaultLocale } from '@/app/i18n/settings';
 import initTranslations from '@/app/i18n';
+import type { Metadata } from 'next';
 
 async function getProject(slug: string): Promise<ProjectType | null> {
   try {
@@ -30,7 +31,7 @@ export async function generateStaticParams() {
   const params: Array<{ lang: string, slug: string }> = [];
   languages.forEach(lang => {
     projects.forEach(project => {
-      if (project.slug) { // Ensure slug is not null/undefined
+      if (project.slug) {
          params.push({ lang, slug: project.slug });
       }
     });
@@ -38,15 +39,57 @@ export async function generateStaticParams() {
   return params;
 }
 
-export async function generateMetadata({ params }: { params: { slug: string, lang: string } }) {
+export async function generateMetadata({ params }: { params: { slug: string, lang: string } }): Promise<Metadata> {
   const project = await getProject(params.slug);
   const { t } = await initTranslations(params.lang, [defaultNS]);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+
   if (!project) {
-    return { title: t('projectDetails.notFound') || 'Project Not Found' }
+    return { 
+      title: t('projectDetails.notFound') || 'Project Not Found',
+      description: 'The project you are looking for could not be found.',
+     }
   }
+
+  const projectTitle = project.title;
+  const pageTitle = `${projectTitle} - ${t('header.appName')}`;
+  const pageDescription = project.shortDescription;
+  const projectUrlPath = params.lang === defaultLocale ? `/projects/${project.slug}` : `/${params.lang}/projects/${project.slug}`;
+  const fullProjectUrl = appUrl ? `${appUrl}${projectUrlPath}` : undefined;
+
+
   return {
-    title: `${project.title} - ${t('header.appName')}`,
-    description: project.shortDescription,
+    title: pageTitle,
+    description: pageDescription,
+    metadataBase: appUrl ? new URL(appUrl) : undefined,
+    alternates: {
+      canonical: projectUrlPath,
+    },
+    openGraph: {
+      title: projectTitle,
+      description: pageDescription,
+      url: fullProjectUrl,
+      siteName: t('header.appName'),
+      images: project.imageUrl ? [
+        {
+          url: project.imageUrl, // Assuming imageUrl is an absolute URL or Next.js can resolve it
+          width: project.imageUrl.includes('placehold.co') ? 600 : 1200, // Adjust if you know image dimensions
+          height: project.imageUrl.includes('placehold.co') ? 400 : 630,
+          alt: projectTitle,
+        },
+      ] : [],
+      locale: params.lang,
+      type: 'article', // More specific type for a project page
+      // publishedTime: project.createdAt?.toISOString(), // Optional: if you have a createdAt field
+      // modifiedTime: project.updatedAt?.toISOString(), // Optional: if you have an updatedAt field
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: projectTitle,
+      description: pageDescription,
+      images: project.imageUrl ? [project.imageUrl] : [],
+      // creator: '@yourTwitterHandle', // Optional
+    },
   };
 }
 
@@ -92,8 +135,9 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                 <Image 
                   src={project.imageUrl} 
                   alt={`${project.title} main image`} 
-                  layout="fill" 
-                  objectFit="cover"
+                  fill // Changed layout to fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Added sizes prop
+                  className="object-cover" // ensure image covers the container
                   data-ai-hint={project.dataAiHint || "project detail"}
                 />
               </div>
@@ -123,8 +167,9 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                        <Image 
                         src={imgUrl} 
                         alt={`${project.title} screenshot ${index + 1}`} 
-                        layout="fill" 
-                        objectFit="cover" 
+                        fill // Changed layout to fill
+                        sizes="(max-width: 640px) 100vw, 50vw" // Added sizes prop
+                        className="object-cover" // ensure image covers the container
                         data-ai-hint={project.dataAiHint || "screenshot interface"}
                        />
                     </div>
