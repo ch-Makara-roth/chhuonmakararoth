@@ -7,10 +7,11 @@ const PUBLIC_FILE = /\.(.*)$/; // Matches files with extensions like .svg, .png,
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip Next.js specific paths, API routes, and public files
+  // Skip Next.js specific paths, API routes, admin routes, and public files
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/') ||
+    pathname.startsWith('/admin') || // Exclude admin routes from locale processing
     PUBLIC_FILE.test(pathname)
   ) {
     return NextResponse.next();
@@ -52,6 +53,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Match all paths except for specific Next.js internals and assets
-    '/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js).*)',
+    // Admin paths are now handled inside the middleware logic directly
+    '/((?!_next/static|_next/image|assets|favicon.ico|sw.js).*)',
   ],
 };
