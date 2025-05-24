@@ -12,7 +12,8 @@ export default async function initTranslations(
 ) {
   i18nInstance = i18nInstance || createInstance();
 
-  i18nInstance.use(initReactI18next);
+  // Do not call i18nInstance.use(initReactI18next) here.
+  // This is handled by the TranslationsProvider for client-side React integration.
 
   if (!resources) {
     i18nInstance.use(
@@ -31,3 +32,4 @@ export default async function initTranslations(
     t: i18nInstance.t
   };
 }
+
