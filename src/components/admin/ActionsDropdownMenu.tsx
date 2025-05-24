@@ -29,7 +29,7 @@ interface ActionsDropdownMenuProps {
   itemName: string;
   editPath: string;
   deleteAction: (id: string) => Promise<{ success: boolean; message: string }>;
-  onDeleteSuccess?: () => void;
+  // onDeleteSuccess?: () => void; // Removed this prop
 }
 
 export default function ActionsDropdownMenu({
@@ -37,7 +37,7 @@ export default function ActionsDropdownMenu({
   itemName,
   editPath,
   deleteAction,
-  onDeleteSuccess,
+  // onDeleteSuccess, // Removed this prop
 }: ActionsDropdownMenuProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -51,9 +51,9 @@ export default function ActionsDropdownMenu({
           title: "Success",
           description: result.message,
         });
-        if (onDeleteSuccess) {
-          onDeleteSuccess();
-        }
+        // if (onDeleteSuccess) { // Removed this block
+        //   onDeleteSuccess();
+        // }
         setIsAlertOpen(false); 
       } else {
         toast({

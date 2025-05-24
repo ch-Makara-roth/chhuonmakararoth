@@ -16,7 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { deleteSkill } from './actions';
-import { revalidatePath } from 'next/cache';
+// import { revalidatePath } from 'next/cache'; // Revalidation is handled in server actions
 import ActionsDropdownMenu from '@/components/admin/ActionsDropdownMenu';
 
 async function getSkillsDirectly(): Promise<Skill[]> {
@@ -45,9 +45,9 @@ export default async function AdminSkillsPage() {
     error = e.message || 'An unknown error occurred.';
   }
   
-  const handlePostDelete = () => {
-    revalidatePath('/admin/skills');
-  };
+  // const handlePostDelete = () => { // Removed this function
+  //   revalidatePath('/admin/skills');
+  // };
 
   if (error) {
     return (
@@ -115,7 +115,7 @@ export default async function AdminSkillsPage() {
                             itemName={skill.name}
                             editPath={`/admin/skills/edit/${skill.id}`}
                             deleteAction={deleteSkill}
-                            onDeleteSuccess={handlePostDelete}
+                            // onDeleteSuccess={handlePostDelete} // Removed this prop
                           />
                         </TableCell>
                     </TableRow>

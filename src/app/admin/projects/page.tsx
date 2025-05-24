@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { deleteProject } from './actions';
-import { revalidatePath } from 'next/cache';
+// import { revalidatePath } from 'next/cache'; // Revalidation is handled in server actions
 import ActionsDropdownMenu from '@/components/admin/ActionsDropdownMenu';
 
 async function getProjectsDirectly(): Promise<Project[]> {
@@ -28,8 +28,6 @@ async function getProjectsDirectly(): Promise<Project[]> {
     return projects;
   } catch (e: any) {
     console.error(`Failed to fetch projects directly from DB:`, e.message, e.stack);
-    // It's better to throw the error or return an object indicating error
-    // rather than an empty array, to distinguish from "no projects found".
     throw new Error(`Failed to fetch projects. Error: ${e.message}`);
   }
 }
@@ -44,12 +42,9 @@ export default async function AdminProjectsPage() {
     error = e.message || 'An unknown error occurred.';
   }
 
-  const handlePostDelete = () => {
-    // This function is called after a successful delete action.
-    // Revalidation should ideally happen in the server action itself.
-    // If client-side state needs update beyond revalidation, it can be done here.
-    revalidatePath('/admin/projects'); // This revalidates the current page
-  };
+  // const handlePostDelete = () => { // Removed this function
+  //   revalidatePath('/admin/projects');
+  // };
 
   if (error) {
     return (
@@ -114,7 +109,7 @@ export default async function AdminProjectsPage() {
                         itemName={project.title}
                         editPath={`/admin/projects/edit/${project.id}`}
                         deleteAction={deleteProject}
-                        onDeleteSuccess={handlePostDelete}
+                        // onDeleteSuccess={handlePostDelete} // Removed this prop
                       />
                     </TableCell>
                   </TableRow>
