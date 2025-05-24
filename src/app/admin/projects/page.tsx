@@ -1,7 +1,6 @@
 
 import type { Project } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -13,16 +12,11 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, PlusCircle, Edit } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import DeleteConfirmationDialog from '@/components/admin/DeleteConfirmationDialog';
+import { PlusCircle } from 'lucide-react';
+import Link from 'next/link';
 import { deleteProject } from './actions';
 import { revalidatePath } from 'next/cache';
+import ActionsDropdownMenu from '@/components/admin/ActionsDropdownMenu';
 
 async function getProjectsDirectly(): Promise<Project[]> {
   try {
@@ -33,7 +27,9 @@ async function getProjectsDirectly(): Promise<Project[]> {
     });
     return projects;
   } catch (e: any) {
-    console.error(`Failed to fetch projects directly from DB:`, e.message);
+    console.error(`Failed to fetch projects directly from DB:`, e.message, e.stack);
+    // It's better to throw the error or return an object indicating error
+    // rather than an empty array, to distinguish from "no projects found".
     throw new Error(`Failed to fetch projects. Error: ${e.message}`);
   }
 }
@@ -49,7 +45,10 @@ export default async function AdminProjectsPage() {
   }
 
   const handlePostDelete = () => {
-    revalidatePath('/admin/projects');
+    // This function is called after a successful delete action.
+    // Revalidation should ideally happen in the server action itself.
+    // If client-side state needs update beyond revalidation, it can be done here.
+    revalidatePath('/admin/projects'); // This revalidates the current page
   };
 
   if (error) {
@@ -74,7 +73,7 @@ export default async function AdminProjectsPage() {
       </div>
 
       {projects.length === 0 && !error && (
-        <Card className="mt-4">
+         <Card className="mt-4">
           <CardContent className="pt-6">
             <p className="text-lg text-muted-foreground">No projects found. Click "Add New Project" to get started.</p>
           </CardContent>
@@ -110,37 +109,13 @@ export default async function AdminProjectsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/admin/projects/edit/${project.id}`} className="flex items-center cursor-pointer">
-                              <Edit className="mr-2 h-4 w-4" />
-                              <span>Edit</span>
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10 p-0"
-                            onSelect={(e) => e.preventDefault()} // Prevent closing menu before dialog
-                          >
-                            <DeleteConfirmationDialog
-                              itemId={project.id}
-                              itemName={project.title}
-                              deleteAction={deleteProject}
-                              onDeleteSuccess={handlePostDelete}
-                              triggerButtonVariant="ghost"
-                              triggerButtonSize="sm"
-                              triggerButtonText="Delete"
-                              showIcon={true}
-                            />
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <ActionsDropdownMenu
+                        itemId={project.id}
+                        itemName={project.title}
+                        editPath={`/admin/projects/edit/${project.id}`}
+                        deleteAction={deleteProject}
+                        onDeleteSuccess={handlePostDelete}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

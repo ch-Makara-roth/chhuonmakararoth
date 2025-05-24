@@ -13,17 +13,11 @@ import {
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { MoreHorizontal, Edit, PlusCircle } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import DeleteConfirmationDialog from '@/components/admin/DeleteConfirmationDialog';
 import { deleteSkill } from './actions';
 import { revalidatePath } from 'next/cache';
+import ActionsDropdownMenu from '@/components/admin/ActionsDropdownMenu';
 
 async function getSkillsDirectly(): Promise<Skill[]> {
   try {
@@ -36,7 +30,7 @@ async function getSkillsDirectly(): Promise<Skill[]> {
     });
     return skills;
   } catch (e: any) {
-    console.error(`Failed to fetch skills directly from DB:`, e.message);
+    console.error(`Failed to fetch skills directly from DB:`, e.message, e.stack);
     throw new Error(`Failed to fetch skills. Error: ${e.message}`);
   }
 }
@@ -116,37 +110,13 @@ export default async function AdminSkillsPage() {
                         </div>
                         </TableCell>
                         <TableCell className="text-right">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                                <Link href={`/admin/skills/edit/${skill.id}`} className="flex items-center cursor-pointer">
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    <span>Edit</span>
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive focus:bg-destructive/10 p-0"
-                                onSelect={(e) => e.preventDefault()}
-                            >
-                                <DeleteConfirmationDialog
-                                    itemId={skill.id}
-                                    itemName={skill.name}
-                                    deleteAction={deleteSkill}
-                                    onDeleteSuccess={handlePostDelete}
-                                    triggerButtonVariant="ghost"
-                                    triggerButtonSize="sm"
-                                    triggerButtonText="Delete"
-                                    showIcon={true}
-                                />
-                            </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                           <ActionsDropdownMenu
+                            itemId={skill.id}
+                            itemName={skill.name}
+                            editPath={`/admin/skills/edit/${skill.id}`}
+                            deleteAction={deleteSkill}
+                            onDeleteSuccess={handlePostDelete}
+                          />
                         </TableCell>
                     </TableRow>
                     ))}
