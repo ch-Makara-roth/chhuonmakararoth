@@ -1,4 +1,3 @@
-
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
@@ -9,22 +8,22 @@ generator client {
 }
 
 model Project {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  slug             String   @unique
-  title            String
-  shortDescription String
-  description      String
-  imageUrl         String   // Main image for the project card
-  dataAiHint       String?  // Optional hint for AI image services
-  technologies     String[] // List of technologies used
-  liveLink         String?
-  repoLink         String?
-  startDate        String   // e.g., "Jan 2023"
-  endDate          String?  // e.g., "Mar 2023" or null if ongoing
-  detailsImages    String[] // URLs for additional images on project detail page
-  features         String[] // Key features of the project
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug              String   @unique
+  title             String
+  shortDescription  String
+  description       String
+  imageUrl          String
+  dataAiHint        String?
+  technologies      String[]
+  liveLink          String?
+  repoLink          String?
+  startDate         String
+  endDate           String?
+  detailsImages     String[]
+  features          String[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Experience {
@@ -41,9 +40,18 @@ model Experience {
 model Skill {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   name         String
+  category     String
   proficiency  Int // 0-100
-  category     String   // e.g., Frontend, Backend, DevOps, Tools
-  technologies String[] // Related specific tools/libraries for this skill
+  technologies String[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model User {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  email          String    @unique
+  name           String?
+  hashedPassword String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

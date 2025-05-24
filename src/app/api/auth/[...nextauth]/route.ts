@@ -1,27 +1,44 @@
-// src/app/api/auth/[...nextauth]/route.ts
+
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        username: { label: "Username", type: "text", placeholder: "admin" },
-        password: { label: "Password", type: "password", placeholder: "password" }
+        email: { label: "Email", type: "email", placeholder: "admin@example.com" },
+        password: { label: "Password", type: "password" }
       },
       async authorize(credentials, req) {
-        // IMPORTANT: THIS IS NOT SECURE FOR PRODUCTION.
-        // Replace this with actual user validation against a database.
-        // Passwords should be hashed and compared securely.
-        if (credentials?.username === 'admin' && credentials?.password === 'password') {
-          // Any object returned will be saved in `user` property of the JWT
-          return { id: '1', name: 'Admin User', email: 'admin@example.com' }; // Add more user info if needed
-        } else {
-          // If you return null then an error will be displayed advising the user to check their details.
+        if (!credentials?.email || !credentials?.password) {
+          console.log('Missing credentials');
           return null;
-          // You can also Reject this callback with an Error thus the user will be sent to the error page with the error message as a query parameter
         }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user || !user.hashedPassword) {
+          console.log('User not found or password not set for:', credentials.email);
+          return null;
+        }
+
+        const isValidPassword = await bcrypt.compare(
+          credentials.password,
+          user.hashedPassword
+        );
+
+        if (!isValidPassword) {
+          console.log('Invalid password for user:', credentials.email);
+          return null;
+        }
+        console.log('Login successful for user:', credentials.email);
+        // Return user object that NextAuth expects
+        return { id: user.id, name: user.name, email: user.email };
       }
     })
   ],
@@ -29,28 +46,30 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
   pages: {
-    signIn: '/login', // Redirect users to our custom login page
-    // error: '/auth/error', // Custom error page (optional)
+    signIn: '/login',
   },
   callbacks: {
     async jwt({ token, user }) {
-      // Persist the user id and name to the token right after signin
+      // Persist the user id, name, and email to the token right after signin
       if (user) {
         token.id = user.id;
-        // token.name = user.name; // Already handled by default
+        token.name = user.name;
+        token.email = user.email;
       }
       return token;
     },
     async session({ session, token }) {
-      // Send properties to the client, like an access_token and user id from a provider.
+      // Send properties to the client, like user id, name, and email.
       if (session.user) {
         session.user.id = token.id as string;
-        // session.user.name = token.name; // Already handled by default
+        session.user.name = token.name as string | null | undefined;
+        session.user.email = token.email as string | null | undefined;
       }
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development', // Enable debug logs in development
 };
 
 const handler = NextAuth(authOptions);

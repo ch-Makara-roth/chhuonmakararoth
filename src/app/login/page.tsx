@@ -1,3 +1,4 @@
+
 // src/app/login/page.tsx
 'use client';
 
@@ -14,7 +15,7 @@ import { AlertTriangle } from 'lucide-react';
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState(''); // Changed from username to email
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(searchParams.get('error'));
   const [isLoading, setIsLoading] = useState(false);
@@ -26,14 +27,16 @@ export default function LoginPage() {
 
     const result = await signIn('credentials', {
       redirect: false, // We'll handle redirect manually
-      username,
+      email, // Changed from username to email
       password,
     });
 
     setIsLoading(false);
 
     if (result?.error) {
-      setError('Invalid username or password. Please try again.');
+      // NextAuth.js returns "CredentialsSignin" for most auth errors by default.
+      // You can customize error messages in the authorize function if needed.
+      setError('Invalid email or password. Please try again.');
     } else if (result?.ok) {
       // Redirect to admin dashboard or intended page
       const callbackUrl = searchParams.get('callbackUrl') || '/admin';
@@ -60,14 +63,14 @@ export default function LoginPage() {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label> {/* Changed from username to email */}
               <Input
-                id="username"
-                name="username"
-                type="text"
-                placeholder="admin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                name="email"
+                type="email" // Changed from text to email
+                placeholder="admin@example.com" // Updated placeholder
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
               />

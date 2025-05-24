@@ -1,12 +1,13 @@
+
 // src/app/admin/layout.tsx
 'use client';
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Home, Briefcase, Lightbulb, GanttChartSquare, LogOut, Loader2 } from 'lucide-react';
+import { Home, Briefcase, Lightbulb, GanttChartSquare, LogOut, Loader2, UserCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation'; // Import usePathname
+import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
 interface AdminLayoutProps {
@@ -16,11 +17,13 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const pathname = usePathname(); // For active link styling
+  const pathname = usePathname();
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+      // Store the current path to redirect back after login
+      const callbackUrl = pathname.startsWith('/admin') ? pathname : '/admin';
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
     }
   }, [status, router, pathname]);
 
@@ -35,7 +38,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (status === 'unauthenticated' || !session) {
     // This state should ideally be brief due to the useEffect redirect.
-    // You might show a more persistent loading or "Redirecting to login..." message here.
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
          <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -44,8 +46,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
   
-  // For active link styling
   const isActive = (href: string) => pathname === href;
+  const welcomeName = session?.user?.name || session?.user?.email || 'User';
 
   return (
     <div className="flex min-h-screen">
@@ -56,9 +58,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               Admin Panel
             </h2>
           </Link>
-          {session?.user?.name && (
-            <p className="text-sm text-muted-foreground mt-1">Welcome, {session.user.name}!</p>
-          )}
+          <div className="flex items-center mt-2 text-sm text-muted-foreground">
+            <UserCircle className="h-5 w-5 mr-2" />
+            <span>Welcome, {welcomeName}!</span>
+          </div>
         </div>
         <nav className="space-y-1 flex-grow">
           <Link 
