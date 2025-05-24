@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 import defaultTheme from 'tailwindcss/defaultTheme'; // Import defaultTheme
 
@@ -11,7 +12,9 @@ export default {
   theme: {
   	extend: {
       fontFamily: {
-        sans: ['var(--font-geist-sans)', ...defaultTheme.fontFamily.sans],
+        // Update sans to use the --font-roboto variable
+        sans: ['var(--font-roboto)', ...defaultTheme.fontFamily.sans],
+        // Keep mono if GeistMono is still used
         mono: ['var(--font-geist-mono)', ...defaultTheme.fontFamily.mono],
       },
   		colors: {
