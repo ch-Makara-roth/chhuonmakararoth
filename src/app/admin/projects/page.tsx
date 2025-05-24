@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import {
@@ -21,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-async function getProjects(): Promise<Project[]> {
+async function getProjectsDirectly(): Promise<Project[]> {
   try {
     const projects = await prisma.project.findMany({
       orderBy: {
@@ -40,7 +41,7 @@ export default async function AdminProjectsPage() {
   let error: string | null = null;
 
   try {
-    projects = await getProjects();
+    projects = await getProjectsDirectly();
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }

@@ -21,18 +21,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from 'next/link';
 
-async function getExperience(): Promise<Experience[]> {
+async function getExperienceDirectly(): Promise<Experience[]> {
   try {
     const experiences = await prisma.experience.findMany({
       orderBy: {
-        // Assuming 'date' is a string. For proper sorting, consider a DateTime field.
-        // Or sort by 'createdAt' or an explicit 'order' field.
         createdAt: 'desc',
       },
     });
     return experiences;
   } catch (e: any) {
-    console.error(`Failed to fetch experience data from DB:`, e.message);
+    console.error(`Failed to fetch experience data directly from DB:`, e.message);
     throw new Error(`Failed to fetch experience data. Error: ${e.message}`);
   }
 }
@@ -42,7 +40,7 @@ export default async function AdminExperiencePage() {
   let error: string | null = null;
 
   try {
-    experiences = await getExperience();
+    experiences = await getExperienceDirectly();
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }

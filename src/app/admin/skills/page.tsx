@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from 'next/link';
 
-async function getSkills(): Promise<Skill[]> {
+async function getSkillsDirectly(): Promise<Skill[]> {
   try {
     const skills = await prisma.skill.findMany({
       orderBy: {
@@ -31,7 +31,7 @@ async function getSkills(): Promise<Skill[]> {
     });
     return skills;
   } catch (e: any) {
-    console.error(`Failed to fetch skills from DB:`, e.message);
+    console.error(`Failed to fetch skills directly from DB:`, e.message);
     throw new Error(`Failed to fetch skills. Error: ${e.message}`);
   }
 }
@@ -41,7 +41,7 @@ export default async function AdminSkillsPage() {
   let error: string | null = null;
 
   try {
-    skills = await getSkills();
+    skills = await getSkillsDirectly();
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }
