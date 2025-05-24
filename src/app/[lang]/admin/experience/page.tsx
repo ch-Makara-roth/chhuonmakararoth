@@ -1,19 +1,36 @@
 
-import type { JourneyItem } from '@/lib/data'; 
+import type { JourneyItem } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Briefcase, CalendarDays } from 'lucide-react';
 import { languages } from '@/app/i18n/settings';
 
+function getApiBaseUrl(): string {
+  let apiUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+  // Replace localhost with 127.0.0.1 for server-side fetch in Node.js to avoid potential IPv6/SSL issues
+  if (apiUrl.startsWith('http://localhost')) {
+    apiUrl = apiUrl.replace('http://localhost', 'http://127.0.0.1');
+  }
+  return apiUrl;
+}
+
 async function getExperience(): Promise<JourneyItem[]> {
-  const apiPath = '/api/experience';
+  const baseUrl = getApiBaseUrl();
+  const apiPath = `${baseUrl}/api/experience`;
+  
   const res = await fetch(apiPath, { cache: 'no-store' });
   if (!res.ok) {
     const errorText = await res.text();
     console.error(`Failed to fetch experience from ${apiPath}:`, res.status, errorText);
-    throw new Error(`Failed to fetch experience from ${apiPath}. Status: ${res.status}`);
+    throw new Error(`Failed to fetch experience from ${apiPath}. Status: ${res.status}, Response: ${errorText}`);
   }
-  return res.json();
+  try {
+    return await res.json();
+  } catch (e: any) {
+    console.error(`Failed to parse JSON from ${apiPath}:`, e.message);
+    const errorText = await res.text(); // Get text again if json parsing failed
+    throw new Error(`Failed to parse JSON from ${apiPath}. Error: ${e.message}. Response body: ${errorText}`);
+  }
 }
 
 export async function generateStaticParams() {
@@ -35,7 +52,8 @@ export default async function AdminExperiencePage({ params: { lang } }: AdminExp
   }
 
   if (error) {
-    const apiPathForErrorMessage = '/api/experience';
+    const baseUrl = getApiBaseUrl();
+    const apiPathForErrorMessage = `${baseUrl}/api/experience`;
     return (
       <div className="text-destructive-foreground bg-destructive p-4 rounded-md">
         <h2 className="text-xl font-semibold">Error Fetching Experience Data</h2>
