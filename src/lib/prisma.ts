@@ -7,13 +7,41 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma =
-  global.prisma ||
-  new PrismaClient({
-    // Uncomment the line below to see Prisma logs in development
-    // log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : [],
-  });
+let prismaExportInstance: PrismaClient;
 
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
+console.log('[PrismaLib] Attempting to initialize Prisma Client...');
+
+try {
+  if (process.env.NODE_ENV === 'production') {
+    prismaExportInstance = new PrismaClient();
+    console.log('[PrismaLib] Prisma Client initialized for production.');
+  } else {
+    if (!global.prisma) {
+      console.log('[PrismaLib] No global Prisma instance found, creating new one for development...');
+      global.prisma = new PrismaClient({
+        // log: ['query', 'info', 'warn', 'error'], // Uncomment for detailed Prisma logs
+      });
+      console.log('[PrismaLib] New Prisma Client created and cached in global for development.');
+    } else {
+      console.log('[PrismaLib] Using existing global Prisma instance for development.');
+    }
+    prismaExportInstance = global.prisma;
+  }
+} catch (e: any) {
+  console.error('[PrismaLib] CRITICAL ERROR DURING PRISMA CLIENT INITIALIZATION:', e.message, e.stack);
+  // If initialization fails, prismaExportInstance will be undefined, which leads to the error.
+  // It's better to throw here to make the root cause more obvious.
+  throw new Error(`Prisma Client failed to initialize: ${e.message}`);
 }
+
+
+if (!prismaExportInstance) {
+  // This case should ideally be caught by the try/catch if PrismaClient constructor fails.
+  const errorMessage = '[PrismaLib] CRITICAL: Prisma client export is undefined AFTER initialization block. This indicates a failure in PrismaClient instantiation that was not caught.';
+  console.error(errorMessage);
+  throw new Error(errorMessage);
+} else {
+  console.log('[PrismaLib] Prisma Client instance is available and will be exported.');
+}
+
+export const prisma = prismaExportInstance;
