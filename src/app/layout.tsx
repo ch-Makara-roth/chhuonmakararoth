@@ -20,19 +20,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // The `lang` attribute is set here. For a fully dynamic `lang` based on segment,
+    // this would require a more complex setup or a different i18n strategy.
+    // For now, it defaults to "en".
     <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className={`antialiased font-sans bg-background text-foreground`}>
-        {/*
-          ThemeProvider and Toaster are included here to ensure they are available
-          globally. The [lang]/layout.tsx also has these, which might lead to nesting
-          but is generally safe for these providers.
-        */}
         <ThemeProvider
             attribute="class"
             defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
           >
+            {/* Children will be the content from src/app/[lang]/layout.tsx or src/app/admin/layout.tsx etc. */}
             {children}
             <Toaster />
         </ThemeProvider>

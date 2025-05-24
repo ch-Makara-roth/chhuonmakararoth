@@ -1,19 +1,12 @@
 
 import type { Metadata } from 'next';
-import '../globals.css'; // Ensure global styles are imported
+// Removed redundant import of '../globals.css';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from '@/components/layout/ThemeProvider';
+// Removed Toaster and ThemeProvider, they are in the global layout
 import TranslationsProvider from '@/components/layout/TranslationsProvider';
 import initTranslations from '@/app/i18n';
-import { languages, defaultNS } from '@/app/i18n/settings';
-import { GeistSans } from 'geist/font/sans'; // Corrected import name
-import { GeistMono } from 'geist/font/mono'; // Corrected import name
-
-// Removed incorrect font object instantiations:
-// const geistSans = GeistSans({ ... });
-// const geistMono = GeistMono({ ... });
-// GeistSans and GeistMono imported above are already the font objects.
+import { languages, defaultNS } from '@/app/i18n/settings'; // defaultLocale removed as it's not used here directly
+// Fonts are applied in the global layout
 
 export async function generateStaticParams() {
   return languages.map((lang) => ({ lang }));
@@ -24,7 +17,7 @@ export async function generateMetadata({ params: { lang } }: { params: { lang: s
   return {
     title: t('header.appName') + " - Portfolio",
     description: 'Personal portfolio of Chhuon MakaraRoth, showcasing projects, skills, and career journey.',
-    viewport: 'width=device-width, initial-scale=1',
+    // Viewport is in global metadata, no need to repeat here
   };
 }
 
@@ -39,28 +32,20 @@ export default async function RootLayout({
 }>) {
   const { resources } = await initTranslations(lang, i18nNamespaces);
 
+  // This layout no longer renders <html> or <body> tags.
+  // It provides the content that will go *inside* the <body> of src/app/layout.tsx
   return (
-    <html lang={lang} suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body className={`antialiased font-sans bg-background text-foreground`}>
-        <TranslationsProvider
-          locale={lang}
-          namespaces={i18nNamespaces}
-          resources={resources}
-        >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <AppHeader />
-            <main className="flex-grow">
-              {children}
-            </main>
-            <Toaster />
-          </ThemeProvider>
-        </TranslationsProvider>
-      </body>
-    </html>
+    <TranslationsProvider
+      locale={lang}
+      namespaces={i18nNamespaces}
+      resources={resources}
+    >
+      {/* ThemeProvider is now in the global src/app/layout.tsx */}
+      <AppHeader />
+      <main className="flex-grow">
+        {children}
+      </main>
+      {/* Toaster is now in the global src/app/layout.tsx */}
+    </TranslationsProvider>
   );
 }
