@@ -1,5 +1,5 @@
 
-import type { Skill } from '@prisma/client'; // Assuming Skill model from Prisma
+import type { Skill } from '@prisma/client'; 
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,9 +25,11 @@ import Link from 'next/link';
 async function getSkillsDirectly(): Promise<Skill[]> {
   try {
     const skills = await prisma.skill.findMany({
-      orderBy: {
-        proficiency: 'desc',
-      },
+      orderBy: [
+        { category: 'asc' }, // Primary sort by category
+        { proficiency: 'desc' }, // Secondary sort by proficiency
+        { name: 'asc' }, // Tertiary sort by name
+      ],
     });
     return skills;
   } catch (e: any) {
@@ -60,17 +62,17 @@ export default async function AdminSkillsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-primary">Manage Skills</h1>
-         {/* <Button asChild disabled> // Enable when 'new skill' page is ready
+        <Button asChild>
           <Link href="/admin/skills/new">
             <PlusCircle className="mr-2 h-5 w-5" /> Add New Skill
           </Link>
-        </Button> */}
+        </Button>
       </div>
 
       {skills.length === 0 && !error && (
          <Card className="mt-4">
           <CardContent className="pt-6">
-            <p className="text-lg text-muted-foreground">No skills found. CRUD operations will be implemented soon.</p>
+            <p className="text-lg text-muted-foreground">No skills found. Click "Add New Skill" to get started.</p>
           </CardContent>
         </Card>
       )}
