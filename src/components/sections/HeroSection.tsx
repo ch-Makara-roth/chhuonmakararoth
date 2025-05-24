@@ -7,45 +7,85 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 const FULL_NAME = "Chhuon MakaraRoth";
-const TYPING_SPEED_MS = 100; // Milliseconds per character
-const START_TYPING_DELAY_MS = 1000; // Delay after "Hello, I'm" animates
+const TYPING_SPEED_MS = 100;
+const ERASING_SPEED_MS = 50;
+const PAUSE_AFTER_TYPING_MS = 2000; // Pause after typing full name
+const PAUSE_AFTER_ERASING_MS = 500;  // Pause after erasing before re-typing
+const START_TYPING_DELAY_MS = 1000; // Delay after "Hello, I'm" animates in
 
 export default function HeroSection() {
   const [typedName, setTypedName] = useState("");
-  const [nameTypingComplete, setNameTypingComplete] = useState(false);
+  const [showBlinkingCursor, setShowBlinkingCursor] = useState(false);
   const [showSubContent, setShowSubContent] = useState(false);
 
   useEffect(() => {
-    // Start typing the name after the initial delay
-    const nameTypingTimer = setTimeout(() => {
-      let charIndex = 0;
-      const intervalId = setInterval(() => {
-        // Check if there are more characters to type
-        if (charIndex < FULL_NAME.length) {
-          setTypedName((prev) => prev + FULL_NAME[charIndex]);
-          charIndex++;
-        } else {
-          // All characters typed
-          clearInterval(intervalId);
-          setNameTypingComplete(true);
-        }
-      }, TYPING_SPEED_MS);
+    // This timeout ensures "Hello, I'm" animation has a chance to start/complete.
+    const initialDelayTimeout = setTimeout(() => {
+      setShowBlinkingCursor(true);
+      let index = 0;
+      let currentDisplayedName = "";
+      let phase: 'typing' | 'pausing_after_typing' | 'erasing' | 'pausing_after_erasing' = 'typing';
+      let animationTimeoutId: NodeJS.Timeout | null = null;
 
-      return () => clearInterval(intervalId); // Cleanup for interval
+      const runAnimationStep = () => {
+        switch (phase) {
+          case 'typing':
+            setShowBlinkingCursor(true);
+            if (index < FULL_NAME.length) {
+              currentDisplayedName += FULL_NAME[index];
+              setTypedName(currentDisplayedName);
+              index++;
+              animationTimeoutId = setTimeout(runAnimationStep, TYPING_SPEED_MS);
+            } else {
+              // Finished typing
+              if (!showSubContent) { // Show sub-content only once after the first full type-out
+                setShowSubContent(true);
+              }
+              phase = 'pausing_after_typing';
+              setShowBlinkingCursor(false); // Hide cursor during this pause
+              animationTimeoutId = setTimeout(runAnimationStep, PAUSE_AFTER_TYPING_MS);
+            }
+            break;
+          case 'pausing_after_typing':
+            phase = 'erasing';
+            setShowBlinkingCursor(true); // Show cursor for erasing
+            animationTimeoutId = setTimeout(runAnimationStep, 0); // Start erasing immediately after pause
+            break;
+          case 'erasing':
+            setShowBlinkingCursor(true);
+            if (currentDisplayedName.length > 0) {
+              currentDisplayedName = currentDisplayedName.slice(0, -1);
+              setTypedName(currentDisplayedName);
+              animationTimeoutId = setTimeout(runAnimationStep, ERASING_SPEED_MS);
+            } else {
+              // Finished erasing
+              phase = 'pausing_after_erasing';
+              // Cursor is already true from start of erasing or will be set by typing
+              animationTimeoutId = setTimeout(runAnimationStep, PAUSE_AFTER_ERASING_MS);
+            }
+            break;
+          case 'pausing_after_erasing':
+            phase = 'typing';
+            index = 0; // Reset for typing
+            currentDisplayedName = ""; // Reset name for re-typing
+            setShowBlinkingCursor(true);
+            animationTimeoutId = setTimeout(runAnimationStep, 0); // Start typing immediately after pause
+            break;
+        }
+      };
+
+      runAnimationStep(); // Start the animation cycle
+
+      return () => { // Cleanup function for the main useEffect
+        if (animationTimeoutId) clearTimeout(animationTimeoutId);
+      };
     }, START_TYPING_DELAY_MS);
 
-    return () => clearTimeout(nameTypingTimer); // Cleanup for timeout
-  }, []); // Empty dependency array ensures this runs once on mount
+    return () => { // Cleanup for the initialDelayTimeout
+        clearTimeout(initialDelayTimeout);
+    };
+  }, []); // Empty dependency array to run once on mount
 
-  useEffect(() => {
-    if (nameTypingComplete) {
-      // Allow sub-content to animate in after a short delay
-      const subContentTimer = setTimeout(() => {
-        setShowSubContent(true);
-      }, 300); // Delay before sub-content animates in
-      return () => clearTimeout(subContentTimer);
-    }
-  }, [nameTypingComplete]);
 
   return (
     <section id="hero" className="w-full h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-br from-background to-secondary/30 relative overflow-hidden">
@@ -56,7 +96,7 @@ export default function HeroSection() {
           </span>
           <span className="block text-primary mt-2 sm:mt-4 min-h-[1.2em] sm:min-h-[1.5em]">
             {typedName}
-            {!nameTypingComplete && <span className="blinking-cursor">|</span>}
+            {showBlinkingCursor && <span className="blinking-cursor">|</span>}
           </span>
         </h1>
         {/* Fallback for non-JS or before hydration for SEO */}
