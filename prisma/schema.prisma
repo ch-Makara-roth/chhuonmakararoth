@@ -1,32 +1,30 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-generator client {
-  provider = "prisma-client-js"
-}
 
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
+
 model Project {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  slug             String    @unique
-  title            String
-  shortDescription String
-  description      String
-  imageUrl         String
-  technologies     String[]
-  liveLink         String?
-  repoLink         String?
-  startDate        String
-  endDate          String?
-  detailsImages    String[]?
-  features         String[]?
-  dataAiHint       String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  slug              String    @unique
+  title             String
+  shortDescription  String
+  description       String
+  imageUrl          String
+  technologies      String[]
+  liveLink          String?
+  repoLink          String?
+  startDate         String
+  endDate           String?
+  detailsImages     String[] // Corrected: Was String[]?
+  features          String[] // Corrected: Was String[]?
+  dataAiHint        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model Experience { // Corresponds to JourneyItem
@@ -35,37 +33,18 @@ model Experience { // Corresponds to JourneyItem
   title       String
   company     String?
   description String
-  tags        String[]?
+  tags        String[] // Corrected: Was String[]?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model Skill {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  name         String   // Removed @unique for now
+  name         String  // Removed @unique temporarily for db push, can be re-added
   proficiency  Int // 0-100
-  technologies String[]?
-  category     String // 'Frontend' | 'Backend' | 'DevOps' | 'Mobile' | 'Tools' | 'Other'
+  technologies String[] // Corrected: Was String[]?
+  category     String // Should match 'Frontend' | 'Backend' | 'DevOps' | 'Mobile' | 'Tools' | 'Other'
+  // icon field from Skill interface is complex for Prisma schema; manage in frontend or as string
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
-
-// Consider adding a model for Blog/Articles if needed
-// model Article {
-//   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-//   title     String
-//   slug      String   @unique
-//   content   String
-//   published Boolean  @default(false)
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
-
-// Consider adding a model for Contact Submissions
-// model ContactSubmission {
-//   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-//   name      String
-//   email     String
-//   message   String
-//   createdAt DateTime @default(now())
-// }
