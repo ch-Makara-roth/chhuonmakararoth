@@ -1,13 +1,18 @@
-"use client";
 
-import { skillsData, type Skill } from '@/lib/data';
+"use client"; // SkillCard within needs to be client for tooltips
+
+import { prisma } from '@/lib/prisma';
+import type { Skill as SkillType } from '@prisma/client'; // Prisma's Skill model
 import { SectionWrapper, SectionHeader } from '@/components/layout/SectionWrapper';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Target, Database, Server, Smartphone, Wrench, Palette } from 'lucide-react'; // Example icons
+import { Target, Database, Server, Smartphone, Wrench, Palette, LucideIcon } from 'lucide-react';
+import initTranslations from '@/app/i18n';
+import { defaultNS } from '@/app/i18n/settings';
 
-const categoryIcons: Record<Skill['category'], React.ElementType> = {
+// SkillCard remains a client component for tooltips
+const categoryIcons: Record<SkillType['category'], LucideIcon> = {
   Frontend: Palette,
   Backend: Database,
   DevOps: Server,
@@ -16,8 +21,8 @@ const categoryIcons: Record<Skill['category'], React.ElementType> = {
   Other: Target,
 };
 
-const SkillCard = ({ skill }: { skill: Skill }) => {
-  const Icon = categoryIcons[skill.category] || Target;
+const SkillCard = ({ skill, t }: { skill: SkillType; t: (key: string, fallback?: string) => string }) => {
+  const Icon = categoryIcons[skill.category as keyof typeof categoryIcons] || Target; // Cast category for safety
 
   return (
     <Card className="shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
@@ -35,13 +40,13 @@ const SkillCard = ({ skill }: { skill: Skill }) => {
               <Progress value={skill.proficiency} className="w-full h-3" aria-label={`${skill.name} proficiency ${skill.proficiency}%`} />
             </TooltipTrigger>
             <TooltipContent>
-              <p>Proficiency: {skill.proficiency}%</p>
+              <p>{t('skillBloom.proficiency', 'Proficiency')}: {skill.proficiency}%</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
         {skill.technologies && skill.technologies.length > 0 && (
           <div className="mt-3">
-            <h4 className="text-xs font-semibold text-muted-foreground mb-1">Related:</h4>
+            <h4 className="text-xs font-semibold text-muted-foreground mb-1">{t('skillBloom.related', 'Related')}:</h4>
             <div className="flex flex-wrap gap-1">
               {skill.technologies.map(tech => (
                 <span key={tech} className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-sm">
@@ -56,18 +61,46 @@ const SkillCard = ({ skill }: { skill: Skill }) => {
   );
 };
 
-export default function SkillBloom() {
+
+// SkillBloom becomes an async Server Component
+interface SkillBloomProps {
+  lang: string;
+}
+async function getSkills(): Promise<SkillType[]> {
+  try {
+    return await prisma.skill.findMany({
+      orderBy: [
+        { category: 'asc' },
+        { proficiency: 'desc' },
+        { name: 'asc' },
+      ],
+    });
+  } catch (error) {
+    console.error("Failed to fetch skills from DB:", error);
+    return [];
+  }
+}
+
+export default async function SkillBloom({ lang }: SkillBloomProps) {
+  const skills = await getSkills();
+  const { t } = await initTranslations(lang, [defaultNS]);
+
   return (
     <SectionWrapper id="skills">
       <SectionHeader
-        title="Skills & Expertise"
-        description="A curated list of my technical skills, tools, and technologies I'm proficient with."
+        title={t('header.skills')}
+        description={t('skillBloom.description', "A curated list of my technical skills, tools, and technologies I'm proficient with.")}
       />
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {skillsData.map((skill) => (
-          <SkillCard key={skill.id} skill={skill} />
-        ))}
-      </div>
+      {skills.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {skills.map((skill) => (
+            // Pass t function to SkillCard
+            <SkillCard key={skill.id} skill={skill} t={t} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-center text-muted-foreground">{t('skillBloom.noSkills', 'No skills available at the moment.')}</p>
+      )}
     </SectionWrapper>
   );
 }

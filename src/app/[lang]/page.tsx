@@ -4,7 +4,7 @@ import JourneyTimeline from '@/components/sections/JourneyTimeline';
 import SkillBloom from '@/components/sections/SkillBloom';
 import ProjectsSection from '@/components/sections/ProjectsSection';
 import ContributionsSection from '@/components/sections/ContributionsSection';
-import { languages } from '@/app/i18n/settings'; // Import languages
+import { languages } from '@/app/i18n/settings';
 
 export async function generateStaticParams() {
   return languages.map((lang) => ({ lang }));
@@ -15,19 +15,13 @@ interface HomeProps {
 }
 
 export default async function Home({ params: { lang } }: HomeProps) {
-  // lang is now available if needed for this page, 
-  // though child components might get it via useTranslation or useParams from next/navigation
   return (
     <>
-      <HeroSection />
-      <JourneyTimeline />
-      <SkillBloom />
-      <ProjectsSection />
-      <ContributionsSection />
-      {/* Placeholder for Footer if needed later */}
-      {/* <footer className="py-8 text-center text-muted-foreground text-sm">
-        © {new Date().getFullYear()} Chhuon MakaraRoth. All rights reserved.
-      </footer> */}
+      <HeroSection /> {/* HeroSection is client, uses useTranslation for lang */}
+      <JourneyTimeline lang={lang} /> {/* Pass lang prop */}
+      <SkillBloom lang={lang} /> {/* Pass lang prop */}
+      <ProjectsSection lang={lang} /> {/* Pass lang prop */}
+      <ContributionsSection /> {/* Contributions section remains static for now */}
     </>
   );
 }

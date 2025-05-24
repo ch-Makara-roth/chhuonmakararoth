@@ -1,5 +1,6 @@
 
-import { projectsData, type Project } from '@/lib/data';
+import { prisma } from '@/lib/prisma';
+import type { Project as ProjectType } from '@prisma/client'; // Use Prisma's generated type
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
@@ -9,16 +10,29 @@ import Link from 'next/link';
 import { languages, defaultNS, defaultLocale } from '@/app/i18n/settings';
 import initTranslations from '@/app/i18n';
 
-async function getProject(slug: string): Promise<Project | undefined> {
-  // In a real app, this would fetch based on slug and possibly locale
-  return projectsData.find((p) => p.slug === slug);
+async function getProject(slug: string): Promise<ProjectType | null> {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { slug },
+    });
+    return project;
+  } catch (error) {
+    console.error(`Error fetching project with slug ${slug}:`, error);
+    return null;
+  }
 }
 
 export async function generateStaticParams() {
+  const projects = await prisma.project.findMany({
+    select: { slug: true },
+  });
+
   const params: Array<{ lang: string, slug: string }> = [];
   languages.forEach(lang => {
-    projectsData.forEach(project => {
-      params.push({ lang, slug: project.slug });
+    projects.forEach(project => {
+      if (project.slug) { // Ensure slug is not null/undefined
+         params.push({ lang, slug: project.slug });
+      }
     });
   });
   return params;
@@ -26,14 +40,13 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: { slug: string, lang: string } }) {
   const project = await getProject(params.slug);
-  // const { t } = await initTranslations(params.lang, [defaultNS]);
+  const { t } = await initTranslations(params.lang, [defaultNS]);
   if (!project) {
-    return { title: 'Project Not Found' } // TODO: Translate this
+    return { title: t('projectDetails.notFound') || 'Project Not Found' }
   }
   return {
-    // title: `${project.title} - ${t('header.appName')}`, // Example of using translated app name
-    title: `${project.title} - Chhuon MakaraRoth Dev`, // Keeping simple for now
-    description: project.shortDescription, // TODO: Translate this
+    title: `${project.title} - ${t('header.appName')}`,
+    description: project.shortDescription,
   };
 }
 
@@ -67,22 +80,24 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-3">{project.title}</h1>
             <div className="flex items-center text-sm text-muted-foreground mb-4">
               <CalendarDays className="h-4 w-4 mr-2" />
-              <span>{project.startDate} {project.endDate ? `- ${project.endDate}` : '- Present'}</span>
+              <span>{project.startDate} {project.endDate ? `- ${project.endDate}` : `- ${t('projectDetails.present') || 'Present'}`}</span>
             </div>
             <div className="flex flex-wrap gap-2 mb-6">
               {project.technologies.map((tech) => (
                 <Badge key={tech} variant="secondary" className="text-sm">{tech}</Badge>
               ))}
             </div>
-            <div className="relative aspect-video w-full rounded-lg overflow-hidden shadow-md mb-6">
-              <Image 
-                src={project.imageUrl} 
-                alt={`${project.title} main image`} 
-                layout="fill" 
-                objectFit="cover"
-                data-ai-hint={project.dataAiHint || "project detail"}
-              />
-            </div>
+            {project.imageUrl && (
+              <div className="relative aspect-video w-full rounded-lg overflow-hidden shadow-md mb-6">
+                <Image 
+                  src={project.imageUrl} 
+                  alt={`${project.title} main image`} 
+                  layout="fill" 
+                  objectFit="cover"
+                  data-ai-hint={project.dataAiHint || "project detail"}
+                />
+              </div>
+            )}
           </header>
 
           <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/90">
@@ -90,7 +105,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
             
             {project.features && project.features.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-2xl font-semibold mb-3 flex items-center"><ListChecks className="mr-3 h-6 w-6 text-accent" />Key Features</h2>
+                <h2 className="text-2xl font-semibold mb-3 flex items-center"><ListChecks className="mr-3 h-6 w-6 text-accent" />{t('projectDetails.keyFeatures') || 'Key Features'}</h2>
                 <ul className="list-disc list-inside space-y-1 pl-2">
                   {project.features.map((feature, index) => (
                     <li key={index}>{feature}</li>
@@ -101,7 +116,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
             
             {project.detailsImages && project.detailsImages.length > 0 && (
               <div className="my-8">
-                <h2 className="text-2xl font-semibold mb-4">Screenshots</h2>
+                <h2 className="text-2xl font-semibold mb-4">{t('projectDetails.screenshots') || 'Screenshots'}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {project.detailsImages.map((imgUrl, index) => (
                     <div key={index} className="relative aspect-[4/3] rounded-md overflow-hidden shadow">
@@ -124,14 +139,14 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               {project.liveLink && (
                 <Button asChild variant="default" size="lg">
                   <a href={project.liveLink} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="mr-2 h-5 w-5" /> Live Demo
+                    <ExternalLink className="mr-2 h-5 w-5" /> {t('projectDetails.liveDemo') || 'Live Demo'}
                   </a>
                 </Button>
               )}
               {project.repoLink && (
                 <Button asChild variant="outline" size="lg">
                   <a href={project.repoLink} target="_blank" rel="noopener noreferrer">
-                    <Github className="mr-2 h-5 w-5" /> View Code
+                    <Github className="mr-2 h-5 w-5" /> {t('projectDetails.viewCode') || 'View Code'}
                   </a>
                 </Button>
               )}

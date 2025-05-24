@@ -1,6 +1,8 @@
-"use client"; 
 
-import { journeyData, type JourneyItem } from '@/lib/data';
+"use client"; // JourneyCard within needs to be client for animations
+
+import { prisma } from '@/lib/prisma';
+import type { Experience as JourneyItemType } from '@prisma/client'; // Prisma's Experience model
 import { SectionWrapper, SectionHeader } from '@/components/layout/SectionWrapper';
 import {
   Accordion,
@@ -11,8 +13,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, CalendarDays } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
+import initTranslations from '@/app/i18n'; // For server-side translations
+import { defaultNS } from '@/app/i18n/settings';
 
-const JourneyCard = ({ item, index }: { item: JourneyItem; index: number }) => {
+
+// JourneyCard remains a client component for animations
+const JourneyCard = ({ item, index, t }: { item: JourneyItemType; index: number; t: (key: string, fallback?: string) => string }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -77,20 +83,44 @@ const JourneyCard = ({ item, index }: { item: JourneyItem; index: number }) => {
   );
 };
 
-export default function JourneyTimeline() {
+
+// JourneyTimeline becomes an async Server Component
+interface JourneyTimelineProps {
+  lang: string;
+}
+async function getJourneyItems(): Promise<JourneyItemType[]> {
+   try {
+    return await prisma.experience.findMany({
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+    });
+  } catch (error) {
+    console.error("Failed to fetch experience data from DB:", error);
+    return [];
+  }
+}
+
+export default async function JourneyTimeline({ lang }: JourneyTimelineProps) {
+  const journeyItems = await getJourneyItems();
+  const { t } = await initTranslations(lang, [defaultNS]);
+
   return (
     <SectionWrapper id="journey" className="bg-secondary/30">
       <SectionHeader
-        title="My Journey"
-        description="A timeline of my career progression, key milestones, and professional growth."
+        title={t('header.journey')}
+        description={t('journeyTimeline.description', "A timeline of my career progression, key milestones, and professional growth.")}
       />
-      <div className="relative">
-        <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto">
-          {journeyData.map((item, index) => (
-            <JourneyCard key={item.id} item={item} index={index} />
-          ))}
-        </Accordion>
-      </div>
+      {journeyItems.length > 0 ? (
+        <div className="relative">
+          <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto">
+            {journeyItems.map((item, index) => (
+              // Pass t function to JourneyCard for any internal text
+              <JourneyCard key={item.id} item={item} index={index} t={t} />
+            ))}
+          </Accordion>
+        </div>
+      ) : (
+         <p className="text-center text-muted-foreground">{t('journeyTimeline.noEntries', 'No journey entries available at the moment.')}</p>
+      )}
     </SectionWrapper>
   );
 }
