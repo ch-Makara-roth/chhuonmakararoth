@@ -1,22 +1,26 @@
+
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import '../globals.css'; // Adjusted path
+import { Inter } from 'next/font/google'; // Using Inter as a common default, adjust if needed
+import '../globals.css';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import TranslationsProvider from '@/components/layout/TranslationsProvider';
 import initTranslations from '@/app/i18n';
 import { languages, defaultNS } from '@/app/i18n/settings';
+import { Geist_Sans } from 'geist/font/sans'; // Corrected import
+import { Geist_Mono } from 'geist/font/mono'; // Corrected import
 
-const geistSans = Geist({
+const geistSans = Geist_Sans({ // Corrected usage
   variable: '--font-geist-sans',
   subsets: ['latin'],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = Geist_Mono({ // Corrected usage
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
+
 
 export async function generateStaticParams() {
   return languages.map((lang) => ({ lang }));
@@ -42,8 +46,8 @@ export default async function RootLayout({
   const { resources } = await initTranslations(lang, i18nNamespaces);
 
   return (
-    <html lang={lang} suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased font-sans`}>
+    <html lang={lang} suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`antialiased font-sans`}>
         <TranslationsProvider
           locale={lang}
           namespaces={i18nNamespaces}
