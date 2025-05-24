@@ -14,7 +14,8 @@ interface HomeProps {
   params: { lang: string };
 }
 
-export default async function Home({ params: { lang } }: HomeProps) {
+export default async function Home({ params }: HomeProps) {
+  const lang = params.lang; // Extract lang from params
   return (
     <>
       <HeroSection /> {/* HeroSection is client, uses useTranslation for lang */}

@@ -1,10 +1,14 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { AppHeader } from '@/components/layout/AppHeader';
 import TranslationsProvider from '@/components/layout/TranslationsProvider';
 import initTranslations from '@/app/i18n';
 import { languages, defaultNS, defaultLocale } from '@/app/i18n/settings';
 import { Nokora, Roboto } from 'next/font/google';
+import './../globals.css'; // Adjusted path to import from parent
+import { ThemeProvider } from '@/components/layout/ThemeProvider';
+import { Toaster } from "@/components/ui/toaster";
+import NextAuthProvider from '@/components/layout/NextAuthProvider';
 
 // Setup Roboto font (default sans-serif)
 const roboto = Roboto({
@@ -19,7 +23,7 @@ const nokoraFont = Nokora({
   subsets: ['khmer'],
   weight: ['400', '700', '900'],
   display: 'swap',
-  variable: '--font-nokora', // Optional: if you want to target it specifically elsewhere
+  variable: '--font-nokora',
 });
 
 export async function generateStaticParams() {
@@ -28,36 +32,32 @@ export async function generateStaticParams() {
 
 const APP_DEFAULT_TITLE = "Chhuon MakaraRoth Dev - Portfolio";
 const APP_DESCRIPTION = 'Personal portfolio of Chhuon MakaraRoth, showcasing projects, skills, and career journey.';
-// IMPORTANT: Replace this with your actual default OG image URL
-const DEFAULT_OG_IMAGE_URL = "https://placehold.co/1200x630.png?text=My+Portfolio";
+const DEFAULT_OG_IMAGE_URL = "https://placehold.co/1200x630.png?text=My+Portfolio"; // Replace this
 
-
-export async function generateMetadata({ params: { lang } }: { params: { lang: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { lang: string } }): Promise<Metadata> {
+  const lang = params.lang; // Access lang from params
   const { t } = await initTranslations(lang, [defaultNS]);
   const siteName = t('header.appName') || APP_DEFAULT_TITLE;
   const title = `${siteName} - Portfolio`;
   const description = APP_DESCRIPTION;
-  // Assuming your app is hosted at process.env.NEXT_PUBLIC_APP_URL for og:url
-  // For local dev, this might be http://localhost:9002. For prod, your actual domain.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
   const localeUrl = lang === defaultLocale ? appUrl : `${appUrl}/${lang}`;
-
 
   return {
     title: title,
     description: description,
     metadataBase: appUrl ? new URL(appUrl) : undefined,
     alternates: {
-      canonical: '/',
-      languages: {
-        'en': '/en',
-        'km': '/km',
-      },
+      canonical: lang === defaultLocale ? '/' : `/${lang}`,
+      languages: languages.reduce((acc, l) => {
+        acc[l] = l === defaultLocale ? '/' : `/${l}`;
+        return acc;
+      }, {} as Record<string, string>),
     },
     openGraph: {
       title: title,
       description: description,
-      url: localeUrl || appUrl, // Fallback to appUrl if localeUrl is just appUrl + "/"
+      url: localeUrl || appUrl,
       siteName: siteName,
       images: [
         {
@@ -89,29 +89,31 @@ const i18nNamespaces = [defaultNS];
 
 export default async function RootLayout({
   children,
-  params: { lang }
+  params, // Access params object directly
 }: Readonly<{
   children: React.ReactNode;
   params: { lang: string };
 }>) {
+  const lang = params.lang; // Extract lang from params
   const { resources } = await initTranslations(lang, i18nNamespaces);
 
   const fontClassName = lang === 'km' ? nokoraFont.className : roboto.className;
 
+  // This layout is specific to [lang] routes and should NOT contain <html> or <body>
+  // Those are provided by the global src/app/layout.tsx
   return (
-    // The <html> and <body> tags are in the global src/app/layout.tsx
-    // This layout applies language-specific fonts and i18n provider
     <TranslationsProvider
       locale={lang}
       namespaces={i18nNamespaces}
       resources={resources}
     >
-      <div className={fontClassName}> {/* Apply language-specific font class */}
+      {/* Apply language-specific font class to a wrapper div */}
+      <div className={`${fontClassName} flex flex-col min-h-screen`}>
         <AppHeader />
         <main className="flex-grow">
           {children}
         </main>
-        {/* Footer could go here */}
+        {/* Footer could go here if it needs language context */}
       </div>
     </TranslationsProvider>
   );
