@@ -2,9 +2,10 @@
 import type { Metadata } from 'next';
 import './globals.css'; // Ensure global styles are imported at the very root
 import { Roboto } from 'next/font/google';
-import { GeistMono } from 'geist/font/mono'; // Kept GeistMono
+import { GeistMono } from 'geist/font/mono';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { Toaster } from "@/components/ui/toaster";
+import NextAuthProvider from '@/components/layout/NextAuthProvider'; // Import NextAuthProvider
 
 // Setup Roboto font
 const roboto = Roboto({
@@ -33,15 +34,17 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${roboto.variable} ${GeistMono.variable}`}>
       {/* font-sans in body will now use --font-roboto via Tailwind config */}
       <body className={`antialiased font-sans bg-background text-foreground`}>
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-            <Toaster />
-        </ThemeProvider>
+        <NextAuthProvider> {/* Wrap ThemeProvider with NextAuthProvider */}
+          <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {children}
+              <Toaster />
+          </ThemeProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );

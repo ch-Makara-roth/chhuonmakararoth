@@ -7,13 +7,19 @@ const PUBLIC_FILE = /\.(.*)$/; // Matches files with extensions like .svg, .png,
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip Next.js specific paths, API routes, admin routes, and public files
+  // Skip Next.js specific paths, API routes (except auth), admin routes, login page, and public files
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/admin') || // Exclude admin routes from locale processing
+    pathname.startsWith('/api/auth/') || // Explicitly allow NextAuth.js API routes
+    pathname.startsWith('/admin') ||     // Exclude all admin routes from locale processing
+    pathname.startsWith('/login') ||     // Exclude login page from locale processing
     PUBLIC_FILE.test(pathname)
   ) {
+    // For /api/ routes other than /api/auth/, you might want to decide if they need i18n or not.
+    // For now, assuming other /api/ routes (like /api/projects) don't need i18n rewrites.
+    if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+        return NextResponse.next();
+    }
     return NextResponse.next();
   }
 
@@ -42,7 +48,7 @@ export function middleware(request: NextRequest) {
     // Rewrite to default locale: /path -> /en/path (internal)
     // This means the user sees /path, but Next.js serves content from /en/path
     const url = request.nextUrl.clone();
-    url.pathname = `/${DEFAULT_LOCALE}${pathname}`;
+    url.pathname = `/${DEFAULT_LOCALE}${pathname === '/' ? '' : pathname}`; // Handle root path correctly
     return NextResponse.rewrite(url);
   }
 
@@ -53,7 +59,6 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Match all paths except for specific Next.js internals and assets
-    // Admin paths are now handled inside the middleware logic directly
     '/((?!_next/static|_next/image|assets|favicon.ico|sw.js).*)',
   ],
 };

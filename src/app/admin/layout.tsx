@@ -1,13 +1,52 @@
+// src/app/admin/layout.tsx
+'use client';
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Home, Briefcase, Lightbulb, GanttChartSquare } from 'lucide-react';
+import { Home, Briefcase, Lightbulb, GanttChartSquare, LogOut, Loader2 } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
+import { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation'; // Import usePathname
+import { Button } from '@/components/ui/button';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const pathname = usePathname(); // For active link styling
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+    }
+  }, [status, router, pathname]);
+
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg">Loading session...</p>
+      </div>
+    );
+  }
+
+  if (status === 'unauthenticated' || !session) {
+    // This state should ideally be brief due to the useEffect redirect.
+    // You might show a more persistent loading or "Redirecting to login..." message here.
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+         <Loader2 className="h-12 w-12 animate-spin text-primary" />
+         <p className="ml-4 text-lg">Redirecting to login...</p>
+      </div>
+    );
+  }
+  
+  // For active link styling
+  const isActive = (href: string) => pathname === href;
+
   return (
     <div className="flex min-h-screen">
       <aside className="w-64 bg-card p-4 border-r flex flex-col">
@@ -17,32 +56,55 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               Admin Panel
             </h2>
           </Link>
+          {session?.user?.name && (
+            <p className="text-sm text-muted-foreground mt-1">Welcome, {session.user.name}!</p>
+          )}
         </div>
         <nav className="space-y-1 flex-grow">
-          <Link href="/admin" className="flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+          <Link 
+            href="/admin" 
+            className={`flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${isActive('/admin') ? 'bg-accent text-accent-foreground' : ''}`}
+          >
             <Home className="mr-3 h-5 w-5" /> Dashboard
           </Link>
-          <Link href="/admin/projects" className="flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+          <Link 
+            href="/admin/projects" 
+            className={`flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${isActive('/admin/projects') ? 'bg-accent text-accent-foreground' : ''}`}
+          >
             <GanttChartSquare className="mr-3 h-5 w-5" /> Projects
           </Link>
-          <Link href="/admin/experience" className="flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+          <Link 
+            href="/admin/experience" 
+            className={`flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${isActive('/admin/experience') ? 'bg-accent text-accent-foreground' : ''}`}
+          >
             <Briefcase className="mr-3 h-5 w-5" /> Experience
           </Link>
-          <Link href="/admin/skills" className="flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+          <Link 
+            href="/admin/skills" 
+            className={`flex items-center p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${isActive('/admin/skills') ? 'bg-accent text-accent-foreground' : ''}`}
+          >
             <Lightbulb className="mr-3 h-5 w-5" /> Skills
           </Link>
         </nav>
-        <div className="mt-auto">
-           <Link href="/" className="flex items-center p-2 rounded-md text-sm hover:bg-secondary hover:text-secondary-foreground transition-colors">
-             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 h-5 w-5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
-            Back to Site
-          </Link>
+        <div className="mt-auto space-y-2">
+           <Button 
+             variant="outline" 
+             className="w-full justify-start"
+             onClick={() => signOut({ callbackUrl: '/login' })}
+           >
+             <LogOut className="mr-3 h-5 w-5" /> Logout
+           </Button>
+           <Button variant="ghost" className="w-full justify-start text-sm" asChild>
+             <Link href="/" className="flex items-center p-2 rounded-md text-sm hover:bg-secondary hover:text-secondary-foreground transition-colors">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 h-5 w-5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+              Back to Site
+            </Link>
+           </Button>
         </div>
       </aside>
-      <main className="flex-1 p-6 md:p-8 lg:p-10 bg-background overflow-auto"> {/* Changed from bg-secondary/30 to bg-background */}
+      <main className="flex-1 p-6 md:p-8 lg:p-10 bg-background overflow-auto">
         {children}
       </main>
     </div>
   );
 }
-
