@@ -130,23 +130,23 @@ export function Header() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[280px] sm:w-[320px] p-6 pt-10 bg-background">
-                <NavLink href={appNamePath} className="mb-8 flex items-center space-x-2">
+                <NavLink href={appNamePath} className="mb-8 flex items-center space-x-2" onClick={() => setIsSheetOpen(false)}>
                   <CodeXml className="h-7 w-7 text-primary" />
                   <span className="text-xl font-bold text-foreground">
                     {t('header.appName')}
                   </span>
                 </NavLink>
                 <nav className="flex flex-col space-y-4">
-                  <NavLink href={journeyPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors">
+                  <NavLink href={journeyPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors" onClick={() => setIsSheetOpen(false)}>
                     {t('header.journey')}
                   </NavLink>
-                  <NavLink href={skillsPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors">
+                  <NavLink href={skillsPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors" onClick={() => setIsSheetOpen(false)}>
                     {t('header.skills')}
                   </NavLink>
-                  <NavLink href={projectsPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors">
+                  <NavLink href={projectsPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors" onClick={() => setIsSheetOpen(false)}>
                     {t('header.projects')}
                   </NavLink>
-                  <NavLink href={contributionsPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors">
+                  <NavLink href={contributionsPath} className="text-lg py-2 text-foreground/80 hover:text-foreground transition-colors" onClick={() => setIsSheetOpen(false)}>
                     {t('header.contributions')}
                   </NavLink>
                 </nav>
