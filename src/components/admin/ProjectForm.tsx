@@ -7,22 +7,25 @@ import { projectFormSchema, type ProjectFormData } from '@/lib/validators/projec
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation'; // For client-side redirect if needed, or use server action redirect
-import type { Project } from '@prisma/client'; // Assuming Prisma client types
+import type { Project } from '@prisma/client';
+
+type ProjectActionResponse = {
+  success: boolean;
+  message: string;
+  errors: Partial<Record<keyof ProjectFormData, string[]>> | null;
+};
 
 interface ProjectFormProps {
-  project?: Project | null; // For editing, null or undefined for new
-  onSubmitAction: (data: ProjectFormData) => Promise<{ success: boolean; message: string; errors: any | null }>;
+  project?: Project | null;
+  onSubmitAction: (data: ProjectFormData) => Promise<ProjectActionResponse>;
   formType: 'create' | 'edit';
 }
 
 export default function ProjectForm({ project, onSubmitAction, formType }: ProjectFormProps) {
   const { toast } = useToast();
-  const router = useRouter();
 
   const defaultValues: Partial<ProjectFormData> = {
     title: project?.title || '',
@@ -54,9 +57,6 @@ export default function ProjectForm({ project, onSubmitAction, formType }: Proje
         title: formType === 'create' ? 'Project Created' : 'Project Updated',
         description: result.message,
       });
-      // Server action should handle redirect. If client-side redirect is needed:
-      // router.push('/admin/projects');
-      // router.refresh(); // Ensure data is fresh if not using revalidatePath
     } else {
       toast({
         title: 'Error',
@@ -64,11 +64,11 @@ export default function ProjectForm({ project, onSubmitAction, formType }: Proje
         variant: 'destructive',
       });
       if (result.errors) {
-        Object.keys(result.errors).forEach((key) => {
-          const field = key as keyof ProjectFormData;
-          const message = result.errors[field]?.join ? result.errors[field].join(', ') : result.errors[field];
-          if (message && form.getFieldState(field)) {
-             form.setError(field, { type: 'server', message });
+        (Object.keys(result.errors) as Array<keyof ProjectFormData>).forEach((key) => {
+          const fieldErrors = result.errors?.[key];
+          const message = fieldErrors?.join ? fieldErrors.join(', ') : String(fieldErrors);
+          if (message && form.getFieldState(key)) {
+             form.setError(key, { type: 'server', message });
           }
         });
       }

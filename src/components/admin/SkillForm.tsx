@@ -11,9 +11,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useToast } from '@/hooks/use-toast';
 import type { Skill } from '@prisma/client';
 
+type SkillActionResponse = {
+  success: boolean;
+  message: string;
+  errors: Partial<Record<keyof SkillFormData, string[]>> | null;
+};
+
 interface SkillFormProps {
-  skill?: Skill | null; // For editing, null or undefined for new
-  onSubmitAction: (data: SkillFormData) => Promise<{ success: boolean; message: string; errors: any | null }>;
+  skill?: Skill | null;
+  onSubmitAction: (data: SkillFormData) => Promise<SkillActionResponse>;
   formType: 'create' | 'edit';
 }
 
@@ -30,7 +36,7 @@ export default function SkillForm({ skill, onSubmitAction, formType }: SkillForm
   const form = useForm<SkillFormData>({
     resolver: zodResolver(skillFormSchema),
     defaultValues,
-    mode: 'onChange', // Validate on change for better UX with proficiency
+    mode: 'onChange', 
   });
 
   const { formState: { isSubmitting } } = form;
@@ -42,7 +48,6 @@ export default function SkillForm({ skill, onSubmitAction, formType }: SkillForm
         title: formType === 'create' ? 'Skill Created' : 'Skill Updated',
         description: result.message,
       });
-      // Server action should handle redirect.
     } else {
       toast({
         title: 'Error',
@@ -50,11 +55,11 @@ export default function SkillForm({ skill, onSubmitAction, formType }: SkillForm
         variant: 'destructive',
       });
       if (result.errors) {
-        Object.keys(result.errors).forEach((key) => {
-          const field = key as keyof SkillFormData;
-          const message = result.errors[field]?.join ? result.errors[field].join(', ') : result.errors[field];
-          if (message && form.getFieldState(field)) { // Check if field exists in form
-             form.setError(field, { type: 'server', message });
+        (Object.keys(result.errors) as Array<keyof SkillFormData>).forEach((key) => {
+          const fieldErrors = result.errors?.[key];
+          const message = fieldErrors?.join ? fieldErrors.join(', ') : String(fieldErrors);
+          if (message && form.getFieldState(key)) { 
+             form.setError(key, { type: 'server', message });
           }
         });
       }
@@ -143,4 +148,3 @@ export default function SkillForm({ skill, onSubmitAction, formType }: SkillForm
     </Card>
   );
 }
-

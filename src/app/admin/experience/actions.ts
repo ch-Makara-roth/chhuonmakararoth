@@ -5,15 +5,22 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { experienceFormSchema, type ExperienceFormData } from '@/lib/validators/experience-validator';
+import { Prisma } from '@prisma/client';
 
-export async function createExperience(formData: ExperienceFormData) {
+type ExperienceActionResponse = {
+  success: boolean;
+  message: string;
+  errors: Partial<Record<keyof ExperienceFormData, string[]>> | null;
+};
+
+export async function createExperience(formData: ExperienceFormData): Promise<ExperienceActionResponse> {
   const validationResult = experienceFormSchema.safeParse(formData);
 
   if (!validationResult.success) {
     return {
       success: false,
       message: 'Invalid form data.',
-      errors: validationResult.error.flatten().fieldErrors,
+      errors: validationResult.error.flatten().fieldErrors as Partial<Record<keyof ExperienceFormData, string[]>>,
     };
   }
 
@@ -31,22 +38,21 @@ export async function createExperience(formData: ExperienceFormData) {
         tags: tagsArray,
       },
     });
-  } catch (error: any) {
-    console.error('Failed to create experience entry:', error);
+  } catch (e: unknown) {
+    console.error('Failed to create experience entry:', e);
+    let message = 'Failed to create experience entry. Please try again.';
+     if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        message = `Database error: ${e.message}`;
+    } else if (e instanceof Error) {
+      message = e.message;
+    }
     return {
       success: false,
-      message: 'Failed to create experience entry. Please try again.',
+      message: message,
       errors: null,
     };
   }
 
   revalidatePath('/admin/experience');
   redirect('/admin/experience');
-
-  // This part is effectively unreachable due to redirect, but good for type consistency
-  // return {
-  //   success: true,
-  //   message: 'Experience entry created successfully!',
-  //   errors: null,
-  // };
 }

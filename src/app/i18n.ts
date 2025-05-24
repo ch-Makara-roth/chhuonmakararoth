@@ -1,6 +1,7 @@
+
 // src/app/i18n.ts
-import { createInstance, type i18n as I18nInstanceType } from 'i18next';
-import { initReactI18next } from 'react-i18next'; // Corrected import for general use
+import { createInstance, type i18n as I18nInstanceType, type Resource } from 'i18next';
+import { initReactI18next } from 'react-i18next'; 
 import resourcesToBackend from 'i18next-resources-to-backend';
 import { getOptions, defaultNS } from './i18n/settings';
 
@@ -8,11 +9,11 @@ export default async function initTranslations(
   locale: string,
   namespaces: string[] = [defaultNS],
   i18nInstance?: I18nInstanceType,
-  resources?: any
+  resources?: Resource 
 ) {
   i18nInstance = i18nInstance || createInstance();
 
-  // Do not call i18nInstance.use(initReactI18next) here.
+  // Do not call i18nInstance.use(initReactI18next) here for server-side.
   // This is handled by the TranslationsProvider for client-side React integration.
 
   if (!resources) {
@@ -28,8 +29,7 @@ export default async function initTranslations(
 
   return {
     i18n: i18nInstance,
-    resources: resources || i18nInstance.services.resourceStore.data,
+    resources: resources || i18nInstance.services.resourceStore.data as Resource,
     t: i18nInstance.t
   };
 }
-

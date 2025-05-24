@@ -6,6 +6,13 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { projectFormSchema, type ProjectFormData } from '@/lib/validators/project-validator';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
+
+type ProjectActionResponse = {
+  success: boolean;
+  message: string;
+  errors: Partial<Record<keyof ProjectFormData, string[]>> | null;
+};
 
 function generateSlug(title: string): string {
   return title
@@ -17,14 +24,14 @@ function generateSlug(title: string): string {
     .replace(/-+$/, ''); // Trim - from end of text
 }
 
-export async function createProject(formData: ProjectFormData) {
+export async function createProject(formData: ProjectFormData): Promise<ProjectActionResponse> {
   const validationResult = projectFormSchema.safeParse(formData);
 
   if (!validationResult.success) {
     return {
       success: false,
       message: 'Invalid form data.',
-      errors: validationResult.error.flatten().fieldErrors,
+      errors: validationResult.error.flatten().fieldErrors as Partial<Record<keyof ProjectFormData, string[]>>,
     };
   }
 
@@ -36,15 +43,24 @@ export async function createProject(formData: ProjectFormData) {
   }
 
   // Ensure slug is unique
-  const existingProjectBySlug = await prisma.project.findUnique({
-    where: { slug },
-  });
+  try {
+    const existingProjectBySlug = await prisma.project.findUnique({
+      where: { slug },
+    });
 
-  if (existingProjectBySlug) {
+    if (existingProjectBySlug) {
+      return {
+        success: false,
+        message: 'A project with this slug already exists. Please choose a unique slug or leave it empty to auto-generate.',
+        errors: { slug: ['Slug already exists.'] }
+      };
+    }
+  } catch (e: unknown) {
+    console.error('Error checking for existing slug:', e);
     return {
       success: false,
-      message: 'A project with this slug already exists. Please choose a unique slug or leave it empty to auto-generate.',
-      errors: { slug: ['Slug already exists.'] }
+      message: 'An error occurred while checking for existing slug. Please try again.',
+      errors: null,
     };
   }
   
@@ -84,20 +100,31 @@ export async function createProject(formData: ProjectFormData) {
         features: featuresArray,
       },
     });
-  } catch (error: any) {
-    console.error('Failed to create project:', error);
-    // More specific error handling for Prisma errors could be added here
-    if (error.code === 'P2002' && error.meta?.target?.includes('slug')) {
-         return {
-            success: false,
-            message: 'A project with this slug already exists. Please choose a unique slug or leave it empty to auto-generate.',
-            errors: { slug: ['Slug already exists.'] }
-        };
+  } catch (e: unknown) {
+    console.error('Failed to create project:', e);
+    let message = 'Failed to create project. Please try again.';
+    let errors: Partial<Record<keyof ProjectFormData, string[]>> | null = null;
+
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === 'P2002') {
+         const target = (e.meta?.target as string[]) || [];
+         if (target.includes('slug')) {
+            message = 'A project with this slug already exists. Please choose a unique slug or leave it empty to auto-generate.';
+            errors = { slug: ['Slug already exists.'] };
+         } else {
+            message = `A unique constraint violation occurred on field(s): ${target.join(', ')}.`;
+         }
+      } else {
+        message = `Database error: ${e.message}`;
+      }
+    } else if (e instanceof Error) {
+      message = e.message;
     }
+    
     return {
       success: false,
-      message: 'Failed to create project. Please try again.',
-      errors: null,
+      message: message,
+      errors: errors,
     };
   }
 

@@ -1,10 +1,11 @@
 
-import NextAuth, { type NextAuthOptions } from 'next-auth';
+import NextAuth, { type NextAuthOptions, type User as NextAuthUser, type Session } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { prisma } from '@/lib/prisma'; // Prisma client import
+import { prisma } from '@/lib/prisma'; 
 import bcrypt from 'bcryptjs';
 
-// Log immediately after import to check prisma's status at module load time
+
 if (typeof prisma === 'undefined') {
   console.error('[NextAuthRoute] CRITICAL: Prisma client imported as UNDEFINED at module level.');
 } else {
@@ -19,12 +20,11 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email", placeholder: "admin@example.com" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials, req) {
+      async authorize(credentials: Record<string, string> | undefined): Promise<NextAuthUser | null> {
         console.log('[NextAuth Authorize] Entered authorize function.');
 
         if (typeof prisma === 'undefined') {
           console.error('[NextAuth Authorize] CRITICAL: Prisma client is UNDEFINED at the start of authorize function!');
-          // Returning null will lead to an auth error, but the root cause is Prisma initialization failure.
           return null;
         }
         console.log('[NextAuth Authorize] Prisma client appears to be defined.');
@@ -62,10 +62,14 @@ export const authOptions: NextAuthOptions = {
           }
 
           console.log('[NextAuth Authorize] Login successful for user:', credentials.email);
-          // Return user object that NextAuth expects
-          return { id: user.id, name: user.name, email: user.email }; // Ensure name is included
-        } catch (error: any) {
-          console.error('[NextAuth Authorize] Error during authorization process:', error.message, error.stack);
+          
+          return { id: user.id, name: user.name, email: user.email };
+        } catch (e: unknown) {
+          let errorMessage = 'Error during authorization process';
+          if (e instanceof Error) {
+            errorMessage = `${errorMessage}: ${e.message}`;
+          }
+          console.error(errorMessage, e);
           return null; 
         }
       }
@@ -78,27 +82,25 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
-      // Persist the user id, name, and email to the token right after signin
+    async jwt({ token, user }: { token: JWT; user?: NextAuthUser | undefined }): Promise<JWT> {
       if (user) {
         token.id = user.id;
-        token.name = user.name; // Ensure name is passed to token
+        token.name = user.name; 
         token.email = user.email;
       }
       return token;
     },
-    async session({ session, token }) {
-      // Send properties to the client, like user id, name, and email.
+    async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.name = token.name as string | null | undefined; // Ensure name is correctly typed
+        session.user.name = token.name as string | null | undefined; 
         session.user.email = token.email as string | null | undefined;
       }
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development', // Enable debug logs in development
+  debug: process.env.NODE_ENV === 'development', 
 };
 
 const handler = NextAuth(authOptions);

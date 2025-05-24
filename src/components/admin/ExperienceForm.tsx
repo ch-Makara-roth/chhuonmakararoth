@@ -12,9 +12,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useToast } from '@/hooks/use-toast';
 import type { Experience } from '@prisma/client';
 
+type ExperienceActionResponse = {
+  success: boolean;
+  message: string;
+  errors: Partial<Record<keyof ExperienceFormData, string[]>> | null;
+};
+
 interface ExperienceFormProps {
-  experience?: Experience | null; // For editing, null or undefined for new
-  onSubmitAction: (data: ExperienceFormData) => Promise<{ success: boolean; message: string; errors: any | null }>;
+  experience?: Experience | null;
+  onSubmitAction: (data: ExperienceFormData) => Promise<ExperienceActionResponse>;
   formType: 'create' | 'edit';
 }
 
@@ -43,7 +49,6 @@ export default function ExperienceForm({ experience, onSubmitAction, formType }:
         title: formType === 'create' ? 'Experience Entry Created' : 'Experience Entry Updated',
         description: result.message,
       });
-      // Server action should handle redirect.
     } else {
       toast({
         title: 'Error',
@@ -51,11 +56,11 @@ export default function ExperienceForm({ experience, onSubmitAction, formType }:
         variant: 'destructive',
       });
       if (result.errors) {
-        Object.keys(result.errors).forEach((key) => {
-          const field = key as keyof ExperienceFormData;
-          const message = result.errors[field]?.join ? result.errors[field].join(', ') : result.errors[field];
-          if (message && form.getFieldState(field)) {
-             form.setError(field, { type: 'server', message });
+        (Object.keys(result.errors) as Array<keyof ExperienceFormData>).forEach((key) => {
+          const fieldErrors = result.errors?.[key];
+          const message = fieldErrors?.join ? fieldErrors.join(', ') : String(fieldErrors);
+          if (message && form.getFieldState(key)) {
+             form.setError(key, { type: 'server', message });
           }
         });
       }
