@@ -15,16 +15,15 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { deleteExperience } from './actions';
-// import { revalidatePath } from 'next/cache'; // Revalidation is handled in server actions
 import ActionsDropdownMenu from '@/components/admin/ActionsDropdownMenu';
 
 async function getExperienceDirectly(): Promise<Experience[]> {
   try {
     const experiences = await prisma.experience.findMany({
-      orderBy: {
-        date: 'desc', 
-        createdAt: 'desc', 
-      },
+      orderBy: [
+        { date: 'desc' }, 
+        { createdAt: 'desc' }, 
+      ],
     });
     return experiences;
   } catch (e: any) {
@@ -42,10 +41,6 @@ export default async function AdminExperiencePage() {
   } catch (e: any) {
     error = e.message || 'An unknown error occurred.';
   }
-
-  // const handlePostDelete = () => { // Removed this function
-  //   revalidatePath('/admin/experience');
-  // };
 
   if (error) {
     return (
@@ -71,7 +66,7 @@ export default async function AdminExperiencePage() {
       {experiences.length === 0 && !error && (
          <Card className="mt-4">
           <CardContent className="pt-6">
-            <p className="text-lg text-muted-foreground">No experience entries found. Click "Add New Experience" to get started.</p>
+            <p className="text-lg text-muted-foreground">No experience entries found. CRUD operations will be implemented soon.</p>
           </CardContent>
         </Card>
       )}
@@ -108,7 +103,6 @@ export default async function AdminExperiencePage() {
                             itemName={item.title}
                             editPath={`/admin/experience/edit/${item.id}`}
                             deleteAction={deleteExperience}
-                            // onDeleteSuccess={handlePostDelete} // Removed this prop
                           />
                         </TableCell>
                     </TableRow>
