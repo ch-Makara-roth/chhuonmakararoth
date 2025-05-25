@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import fs from 'fs/promises';
 import path from 'path';
 import { writeFile } from 'fs/promises';
+import { put, del } from '@vercel/blob'; // Import Vercel Blob functions
 
 export type ProjectActionResponse = {
   success: boolean;
@@ -32,34 +33,44 @@ async function handleImageUpload(imageFile: File | null, existingImageUrl?: stri
     return existingImageUrl; // Keep existing or undefined if creating and no file
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    // In production, don't attempt to write to local filesystem.
-    // This is where integration with Vercel Blob, S3, Cloudinary, etc., would go.
-    // For now, we throw an error to indicate this feature needs a cloud storage solution.
-    console.warn('Image upload attempt in production without cloud storage configured. This operation will fail.');
-    throw new Error('Image uploads to the local filesystem are not supported in the production environment. Please configure a cloud storage solution.');
-  }
-
-  // Local development file upload logic
   if (imageFile.size > MAX_FILE_SIZE_BYTES) {
     throw new Error(`Image size exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB limit.`);
   }
   if (!ACCEPTED_IMAGE_TYPES.includes(imageFile.type)) {
     throw new Error(`Invalid image type. Accepted types: ${ACCEPTED_IMAGE_TYPES.join(', ')}`);
   }
-
-  const uploadDir = path.join(process.cwd(), 'public/uploads/projects');
-  await fs.mkdir(uploadDir, { recursive: true });
-
+  
   const fileExtension = path.extname(imageFile.name);
   const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
   const filename = `${uniqueSuffix}${fileExtension}`;
-  const filePath = path.join(uploadDir, filename);
 
-  const buffer = Buffer.from(await imageFile.arrayBuffer());
-  await writeFile(filePath, buffer);
+  if (process.env.NODE_ENV === 'production') {
+    // Production: Upload to Vercel Blob
+    try {
+      const blob = await put(`projects/${filename}`, imageFile, {
+        access: 'public',
+        // You can add contentType here if needed, e.g., contentType: imageFile.type
+      });
+      console.log('Uploaded to Vercel Blob:', blob.url);
+      return blob.url; // This is the public URL of the uploaded file
+    } catch (error: unknown) {
+      console.error('Vercel Blob upload failed:', error);
+      if (error instanceof Error) {
+        throw new Error(`Image upload to cloud storage failed: ${error.message}`);
+      }
+      throw new Error('Image upload to cloud storage failed due to an unknown error.');
+    }
+  } else {
+    // Development: Local file upload logic
+    const uploadDir = path.join(process.cwd(), 'public/uploads/projects');
+    await fs.mkdir(uploadDir, { recursive: true });
+    const filePath = path.join(uploadDir, filename);
 
-  return `/uploads/projects/${filename}`; // Relative path for DB
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    await writeFile(filePath, buffer);
+    console.log('Uploaded locally to:', `/uploads/projects/${filename}`);
+    return `/uploads/projects/${filename}`; // Relative path for DB
+  }
 }
 
 export async function createProject(formData: FormData): Promise<ProjectActionResponse> {
@@ -79,11 +90,10 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     if (!imageFile || imageFile.size === 0) {
         return { success: false, message: 'Project image is required for creation.', errors: { imageFile: ['Project image is required.']}};
     }
-    // The handleImageUpload function will throw in production if an image is attempted
     imageUrlToStore = await handleImageUpload(imageFile, null); 
-    if (!imageUrlToStore && process.env.NODE_ENV !== 'production') { 
-        // This case should ideally not be hit if image is required and upload fails locally
-        return { success: false, message: 'Image upload failed.', errors: { imageFile: ['Image upload failed or image was not provided.']}};
+    if (!imageUrlToStore) {
+        // This case should ideally not be hit if image is required and upload fails
+        return { success: false, message: 'Image upload failed or image was not provided.', errors: { imageFile: ['Image upload failed or image was not provided.']}};
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Image processing failed.';
@@ -135,7 +145,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
         slug: slug,
         shortDescription: data.shortDescription,
         description: data.description,
-        imageUrl: imageUrlToStore,
+        imageUrl: imageUrlToStore, // Store the public URL from Vercel Blob or local path
         dataAiHint: data.dataAiHint || null,
         technologies: technologiesArray,
         liveLink: data.liveLink || null,
@@ -204,7 +214,6 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
 
   try {
     if (imageFile && imageFile.size > 0) {
-      // The handleImageUpload function will throw in production if an image is attempted
       const newImageUrl = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
       if (newImageUrl && newImageUrl !== projectToUpdate.imageUrl) {
         oldImageToDelete = projectToUpdate.imageUrl; // Mark old image for deletion if new one is different
@@ -274,22 +283,32 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       },
     });
 
-    // Attempt to delete the old image file if a new one was uploaded
-    if (oldImageToDelete && oldImageToDelete.startsWith('/uploads/projects/') && process.env.NODE_ENV !== 'production') {
+    // Attempt to delete the old image file
+    if (oldImageToDelete) {
+      if (process.env.NODE_ENV === 'production' && oldImageToDelete.startsWith('https://')) {
+        // Assuming oldImageToDelete is a Vercel Blob URL
+        try {
+          await del(oldImageToDelete);
+          console.log(`Deleted old Vercel Blob image: ${oldImageToDelete}`);
+        } catch (blobError: any) {
+          console.error(`Failed to delete old Vercel Blob image ${oldImageToDelete}: ${blobError.message}`);
+        }
+      } else if (oldImageToDelete.startsWith('/uploads/projects/')) {
         const imagePath = path.join(process.cwd(), 'public', oldImageToDelete);
         try {
             await fs.unlink(imagePath);
-            console.log(`Deleted old image file: ${imagePath}`);
+            console.log(`Deleted old local image file: ${imagePath}`);
         } catch (fileError: any) {
-            console.error(`Failed to delete old image file ${imagePath}: ${fileError.message}`);
+            console.error(`Failed to delete old local image file ${imagePath}: ${fileError.message}`);
         }
+      }
     }
 
 
     revalidatePath('/admin/projects');
     revalidatePath(`/admin/projects/edit/${id}`);
-    revalidatePath(`/projects/${updatedProject.slug}`); // Revalidate public page
-    revalidatePath(`/`); // Revalidate home page if projects are listed there
+    revalidatePath(`/projects/${updatedProject.slug}`); 
+    revalidatePath(`/`); 
 
     return {
       success: true,
@@ -330,17 +349,26 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
       return { success: false, message: "Project not found." };
     }
 
-    // Attempt to delete the image file (only in non-production environments for local uploads)
-    if (project.imageUrl && project.imageUrl.startsWith('/uploads/projects/') && process.env.NODE_ENV !== 'production') {
+    // Attempt to delete the image file
+    if (project.imageUrl) {
+      if (process.env.NODE_ENV === 'production' && project.imageUrl.startsWith('https://')) {
+         // Assuming project.imageUrl is a Vercel Blob URL
+        try {
+          await del(project.imageUrl);
+          console.log(`Deleted Vercel Blob image: ${project.imageUrl}`);
+        } catch (blobError: any) {
+          console.error(`Failed to delete Vercel Blob image ${project.imageUrl}: ${blobError.message}`);
+          // Do not block project deletion if blob deletion fails, but log it.
+        }
+      } else if (project.imageUrl.startsWith('/uploads/projects/')) {
         const imagePath = path.join(process.cwd(), 'public', project.imageUrl);
         try {
             await fs.unlink(imagePath);
-            console.log(`Deleted image file: ${imagePath}`);
+            console.log(`Deleted local image file: ${imagePath}`);
         } catch (fileError: any) {
-            console.error(`Failed to delete image file ${imagePath}: ${fileError.message}`);
+            console.error(`Failed to delete local image file ${imagePath}: ${fileError.message}`);
         }
-    } else if (project.imageUrl && process.env.NODE_ENV === 'production') {
-        console.log(`Production environment: Image file ${project.imageUrl} on cloud storage would need manual deletion or a separate cleanup process.`);
+      }
     }
 
 
@@ -348,8 +376,8 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
       where: { id },
     });
     revalidatePath('/admin/projects');
-    revalidatePath(`/projects/${project.slug}`); // Revalidate public page
-    revalidatePath(`/`); // Revalidate home page
+    revalidatePath(`/projects/${project.slug}`); 
+    revalidatePath(`/`); 
     return { success: true, message: 'Project deleted successfully.' };
   } catch (e: unknown) {
     console.error('Failed to delete project:', e);
