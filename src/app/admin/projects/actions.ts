@@ -54,8 +54,6 @@ async function handleImageUpload(imageFile: File | null, existingImageUrl?: stri
       console.log(`[HandleImageUpload] PRODUCTION: Attempting to upload projects/${filename} to Vercel Blob.`);
       const blob = await put(`projects/${filename}`, imageFile, {
         access: 'public',
-        // Optionally, add cacheControl for production images if needed
-        // cacheControlMaxAge: 365 * 24 * 60 * 60, // 1 year
       });
       console.log('[HandleImageUpload] PRODUCTION: Uploaded to Vercel Blob:', blob.url);
       return blob.url;
@@ -111,19 +109,12 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       }
     });
 
-    let imageUrlToStore: string | null = null;
     const imageFile = rawData.imageFile as File | null;
+    let imageUrlToStore: string | null | undefined = null;
 
-    // --- TEMPORARY DEBUGGING BYPASS FOR IMAGE UPLOAD ---
-    // Ensure this bypass logic is what you intend for debugging
     if (imageFile && imageFile.size > 0) {
-        // For actual upload, call handleImageUpload:
-        // imageUrlToStore = await handleImageUpload(imageFile, null);
-        // console.log('[CreateProjectAction] Actual image upload processed.');
-        
-        // Current bypass:
-        imageUrlToStore = `/temp-debug-uploads/projects/${Date.now()}-${imageFile.name}`; // Placeholder
-        console.warn(`[CreateProjectAction] DEBUG: Image upload bypassed. Using placeholder: ${imageUrlToStore}`);
+        imageUrlToStore = await handleImageUpload(imageFile, null);
+        console.log('[CreateProjectAction] Image upload processed by handleImageUpload.');
     } else {
         // If image is required for creation and not provided or empty
         console.error('[CreateProjectAction] Image file validation: FAILED - Missing or empty image for create.');
@@ -133,23 +124,18 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
             errors: { imageFile: ['Project image is required.'] },
         };
     }
-    // --- END TEMPORARY DEBUGGING BYPASS ---
     
-    // If, after bypass or actual upload, imageUrlToStore is still null (and it's required)
-    // This check might be redundant if the bypass logic above handles it, but for safety:
     if (!imageUrlToStore) {
-         console.error('[CreateProjectAction] Image URL to store is null after image handling stage.');
+         console.error('[CreateProjectAction] Image URL to store is null after image handling stage (e.g. upload failed or image not provided).');
         return { success: false, message: 'Image processing failed or image was not provided.', errors: { imageFile: ['Image processing failed or image was not provided.']}};
     }
     console.log(`[CreateProjectAction] Image URL to store set to: ${imageUrlToStore}`);
-
 
     const textDataToValidate = { ...rawData };
     delete textDataToValidate.imageFile;
     if (textDataToValidate.hasOwnProperty('currentImageUrl')) {
       delete textDataToValidate.currentImageUrl;
     }
-
 
     console.log('[CreateProjectAction] Data for Zod validation:', JSON.stringify(textDataToValidate, null, 2));
     const validationResult = projectFormSchema.safeParse(textDataToValidate);
@@ -187,7 +173,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       const urls = data.detailsImagesString.split(',').map(s => s.trim()).filter(s => s.length > 0);
       urls.forEach(url => {
         try {
-          new URL(url);
+          new URL(url); // Validate if it's a URL
           detailsImagesArray.push(url);
         } catch (_) {
           console.warn(`[CreateProjectAction] Invalid URL in detailsImagesString skipped: ${url}`);
@@ -202,7 +188,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
         slug: slug,
         shortDescription: data.shortDescription,
         description: data.description,
-        imageUrl: imageUrlToStore, // imageUrlToStore is guaranteed non-null here
+        imageUrl: imageUrlToStore, 
         dataAiHint: data.dataAiHint || null,
         technologies: technologiesArray,
         liveLink: data.liveLink || null,
@@ -216,8 +202,8 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     console.log('[CreateProjectAction] Project created successfully in DB. ID:', newProject.id);
 
     revalidatePath('/admin/projects');
-    revalidatePath(`/projects/${newProject.slug}`); // Public project detail page
-    revalidatePath('/'); // Homepage or main projects listing
+    revalidatePath(`/projects/${newProject.slug}`); 
+    revalidatePath('/'); 
     console.log('[CreateProjectAction] Paths revalidated: /admin/projects, /projects/[slug], /');
 
     return {
@@ -246,7 +232,12 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       }
     } else if (e instanceof Error) {
       message = e.message;
-      errorDetails = { _form: [message] };
+      // Check if the error is from handleImageUpload (e.g., size/type validation)
+      if (message.startsWith("Image size exceeds") || message.startsWith("Invalid image type") || message.startsWith("Image upload to cloud storage failed") || message.startsWith("Failed to create upload directory") || message.startsWith("Failed to write image file locally")) {
+        errorDetails = { imageFile: [message] };
+      } else {
+        errorDetails = { _form: [message] };
+      }
     } else {
       message = `An unknown error occurred: ${String(e)}`;
       errorDetails = { _form: [message] };
@@ -292,27 +283,27 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
     const imageFile = rawData.imageFile as File | null;
     let oldImageToDelete: string | null = null;
 
-    // --- TEMPORARY DEBUGGING BYPASS FOR IMAGE UPLOAD ---
     if (imageFile && imageFile.size > 0) {
-      // For actual upload:
-      // const newImageUrl = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
-      // console.log(`[UpdateProjectAction ID: ${id}] Actual image upload attempted for update.`);
+      const newImageUrl = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
+      console.log(`[UpdateProjectAction ID: ${id}] Image upload attempted by handleImageUpload for update.`);
       
-      // Current bypass:
-      const newImageUrl = `/temp-debug-uploads/projects/${Date.now()}-${imageFile.name}`; // Placeholder
-      console.warn(`[UpdateProjectAction ID: ${id}] DEBUG: Image upload bypassed. Using placeholder: ${newImageUrl}`);
-
       if (newImageUrl && newImageUrl !== projectToUpdate.imageUrl) {
-        if (projectToUpdate.imageUrl && !projectToUpdate.imageUrl.startsWith('/temp-debug-uploads/')) { // Don't mark temp debug images for deletion from real storage
+        if (projectToUpdate.imageUrl) { 
              oldImageToDelete = projectToUpdate.imageUrl;
         }
         imageUrlToStore = newImageUrl;
         console.log(`[UpdateProjectAction ID: ${id}] New image URL set: ${imageUrlToStore}. Old image marked for deletion: ${oldImageToDelete}`);
+      } else if (newImageUrl === projectToUpdate.imageUrl) {
+        console.log(`[UpdateProjectAction ID: ${id}] Uploaded image resulted in the same URL or existing URL was returned. No change to imageUrl or oldImageToDelete.`);
+      } else {
+        // handleImageUpload might have thrown an error (e.g. validation) or returned undefined if existingImageUrl was kept
+        // if newImageUrl is undefined here and it was supposed to be a new image, something went wrong or it was invalid
+        // but handleImageUpload should throw an error for invalid files which would be caught by the outer try/catch
+        console.log(`[UpdateProjectAction ID: ${id}] No new image URL was generated, or existing image was kept by handleImageUpload.`);
       }
     } else {
-      console.log(`[UpdateProjectAction ID: ${id}] No new image file provided, keeping existing: ${imageUrlToStore}`);
+      console.log(`[UpdateProjectAction ID: ${id}] No new image file provided, keeping existing image URL: ${imageUrlToStore}`);
     }
-    // --- END TEMPORARY DEBUGGING BYPASS ---
     
     const textDataToValidate = { ...rawData };
     delete textDataToValidate.imageFile;
@@ -387,14 +378,14 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
 
     if (oldImageToDelete) {
       console.log(`[UpdateProjectAction ID: ${id}] Attempting to delete old image: ${oldImageToDelete}`);
-      if (process.env.NODE_ENV === 'production' && oldImageToDelete.startsWith('https://')) { // Assuming Vercel Blob URL
+      if (process.env.NODE_ENV === 'production' && oldImageToDelete.startsWith('https://') && oldImageToDelete.includes('.public.blob.vercel-storage.com')) {
         try {
           await del(oldImageToDelete);
           console.log(`[UpdateProjectAction ID: ${id}] Deleted old Vercel Blob image: ${oldImageToDelete}`);
         } catch (blobError: any) {
           console.error(`[UpdateProjectAction ID: ${id}] Failed to delete old Vercel Blob image ${oldImageToDelete}: ${blobError.message || blobError}`);
         }
-      } else if (oldImageToDelete.startsWith('/uploads/projects/')) { // Local dev image
+      } else if (process.env.NODE_ENV !== 'production' && oldImageToDelete.startsWith('/uploads/projects/')) { 
         const imagePath = path.join(process.cwd(), 'public', oldImageToDelete);
         try {
             await fs.unlink(imagePath);
@@ -440,7 +431,12 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       }
     } else if (e instanceof Error) {
       message = e.message;
-      errorDetails = { _form: [message] };
+      // Check if the error is from handleImageUpload (e.g., size/type validation)
+      if (message.startsWith("Image size exceeds") || message.startsWith("Invalid image type") || message.startsWith("Image upload to cloud storage failed") || message.startsWith("Failed to create upload directory") || message.startsWith("Failed to write image file locally")) {
+        errorDetails = { imageFile: [message] };
+      } else {
+        errorDetails = { _form: [message] };
+      }
     } else {
       message = `An unknown error occurred: ${String(e)}`;
       errorDetails = { _form: [message] };
@@ -453,12 +449,14 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
 
 export async function deleteProject(id: string): Promise<{ success: boolean; message: string }> {
   console.log(`[DeleteProjectAction ID: ${id}] Attempting to delete project.`);
+  let projectSlugForRevalidation: string | null = null;
   try {
     const project = await prisma.project.findUnique({ where: {id}});
     if (!project) {
       console.error(`[DeleteProjectAction ID: ${id}] Project not found.`);
       return { success: false, message: "Project not found." };
     }
+    projectSlugForRevalidation = project.slug; // Store slug before deletion
 
     const imageUrlToDelete = project.imageUrl;
 
@@ -469,26 +467,21 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
 
     if (imageUrlToDelete) {
       console.log(`[DeleteProjectAction ID: ${id}] Project had image URL: ${imageUrlToDelete}. Attempting to delete image.`);
-      // Check if it's a Vercel Blob URL (production)
       if (process.env.NODE_ENV === 'production' && imageUrlToDelete.startsWith('https://') && imageUrlToDelete.includes('.public.blob.vercel-storage.com')) {
         try {
           await del(imageUrlToDelete);
           console.log(`[DeleteProjectAction ID: ${id}] Deleted Vercel Blob image: ${imageUrlToDelete}`);
         } catch (blobError: any) {
           console.error(`[DeleteProjectAction ID: ${id}] Failed to delete Vercel Blob image ${imageUrlToDelete}: ${blobError.message || blobError}`);
-          // Don't fail the whole delete operation if blob deletion fails, just log it
         }
-      } else if (imageUrlToDelete.startsWith('/uploads/projects/') || imageUrlToDelete.startsWith('/temp-debug-uploads/projects/')) {
-        // Handle local or temporary debug images
-        const localPathSegment = imageUrlToDelete.replace('/temp-debug-uploads/', '/uploads/'); // Normalize path for debug
-        const imagePath = path.join(process.cwd(), 'public', localPathSegment);
+      } else if (process.env.NODE_ENV !== 'production' && imageUrlToDelete.startsWith('/uploads/projects/')) {
+        const imagePath = path.join(process.cwd(), 'public', imageUrlToDelete);
         try {
             await fs.unlink(imagePath);
             console.log(`[DeleteProjectAction ID: ${id}] Deleted local image file: ${imagePath}`);
         } catch (fileError: any) {
-            // Log if file doesn't exist (e.g., it was a placeholder never written, or already deleted)
             if ((fileError as NodeJS.ErrnoException).code === 'ENOENT') {
-              console.warn(`[DeleteProjectAction ID: ${id}] Local image file not found (may have been a placeholder or already deleted): ${imagePath}`);
+              console.warn(`[DeleteProjectAction ID: ${id}] Local image file not found (may have been already deleted): ${imagePath}`);
             } else {
               console.error(`[DeleteProjectAction ID: ${id}] Failed to delete local image file ${imagePath}: ${fileError.message || fileError}`);
             }
@@ -496,9 +489,10 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
       }
     }
 
-
     revalidatePath('/admin/projects');
-    revalidatePath(`/projects/${project.slug}`); // This might fail if slug was just deleted, consider conditional
+    if (projectSlugForRevalidation) {
+      revalidatePath(`/projects/${projectSlugForRevalidation}`);
+    }
     revalidatePath('/');
     console.log(`[DeleteProjectAction ID: ${id}] Paths revalidated.`);
     return { success: true, message: 'Project deleted successfully.' };
@@ -507,12 +501,17 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
      let message = 'Failed to delete project. Please try again.';
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
         message = `Database error (Code: ${e.code}): ${e.message}`;
+        if (e.code === 'P2025') {
+            message = 'Project not found for deletion.';
+        }
     } else if (e instanceof Error) {
       message = e.message;
     }
     return { success: false, message };
   }
 }
+    
+
     
 
     
