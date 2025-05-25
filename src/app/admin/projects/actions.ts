@@ -32,6 +32,15 @@ async function handleImageUpload(imageFile: File | null, existingImageUrl?: stri
     return existingImageUrl; // Keep existing or undefined if creating and no file
   }
 
+  if (process.env.NODE_ENV === 'production') {
+    // In production, don't attempt to write to local filesystem.
+    // This is where integration with Vercel Blob, S3, Cloudinary, etc., would go.
+    // For now, we throw an error to indicate this feature needs a cloud storage solution.
+    console.warn('Image upload attempt in production without cloud storage configured. This operation will fail.');
+    throw new Error('Image uploads to the local filesystem are not supported in the production environment. Please configure a cloud storage solution.');
+  }
+
+  // Local development file upload logic
   if (imageFile.size > MAX_FILE_SIZE_BYTES) {
     throw new Error(`Image size exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB limit.`);
   }
@@ -56,10 +65,9 @@ async function handleImageUpload(imageFile: File | null, existingImageUrl?: stri
 export async function createProject(formData: FormData): Promise<ProjectActionResponse> {
   const rawData: Record<string, any> = {};
   formData.forEach((value, key) => {
-    // For file inputs, FormData stores the File object directly
     if (key === 'imageFile' && value instanceof File && value.size > 0) {
       rawData[key] = value;
-    } else if (key !== 'imageFile') { // Handle text fields
+    } else if (key !== 'imageFile') { 
       rawData[key] = value;
     }
   });
@@ -71,17 +79,19 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     if (!imageFile || imageFile.size === 0) {
         return { success: false, message: 'Project image is required for creation.', errors: { imageFile: ['Project image is required.']}};
     }
-    imageUrlToStore = await handleImageUpload(imageFile, null);
-    if (!imageUrlToStore) { // Should be caught by previous check or handleImageUpload error
+    // The handleImageUpload function will throw in production if an image is attempted
+    imageUrlToStore = await handleImageUpload(imageFile, null); 
+    if (!imageUrlToStore && process.env.NODE_ENV !== 'production') { 
+        // This case should ideally not be hit if image is required and upload fails locally
         return { success: false, message: 'Image upload failed.', errors: { imageFile: ['Image upload failed or image was not provided.']}};
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Image processing failed.';
-    return { success: false, message, errors: { imageFile: [message] } };
+    return { success: false, message, errors: { imageFile: [message], _form: [message] } };
   }
   
   const textDataToValidate = { ...rawData };
-  delete textDataToValidate.imageFile; // Remove file from data to be validated by Zod for text fields
+  delete textDataToValidate.imageFile; 
 
   const validationResult = projectFormSchema.safeParse(textDataToValidate);
 
@@ -125,7 +135,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
         slug: slug,
         shortDescription: data.shortDescription,
         description: data.description,
-        imageUrl: imageUrlToStore, // Use the uploaded image path
+        imageUrl: imageUrlToStore,
         dataAiHint: data.dataAiHint || null,
         technologies: technologiesArray,
         liveLink: data.liveLink || null,
@@ -138,7 +148,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     });
     
     revalidatePath('/admin/projects');
-    revalidatePath(`/projects/${newProject.slug}`);
+    revalidatePath(`/projects/${newProject.slug}`); // Revalidate public page
     return {
       success: true,
       message: 'Project created successfully!',
@@ -148,7 +158,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
   } catch (e: unknown) {
     console.error('Failed to create project:', e);
     let message = 'Failed to create project. Please try again.';
-    let errors: ProjectActionResponse['errors'] = null;
+    let errors: ProjectActionResponse['errors'] = { _form: [] };
 
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === 'P2002') {
@@ -158,9 +168,16 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
             errors = { slug: ['Slug already exists.'] };
          } else {
             message = `A unique constraint violation occurred on field(s): ${target.join(', ')}.`;
+            if (errors._form) errors._form.push(message); else errors._form = [message];
          }
-      } else { message = `Database error: ${e.message}`; }
-    } else if (e instanceof Error) { message = e.message; }
+      } else { 
+        message = `Database error: ${e.message}`; 
+        if (errors._form) errors._form.push(message); else errors._form = [message];
+      }
+    } else if (e instanceof Error) { 
+      message = e.message; 
+      if (errors._form) errors._form.push(message); else errors._form = [message];
+    }
     
     return { success: false, message: message, errors: errors };
   }
@@ -181,18 +198,22 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
     }
   });
 
-  let imageUrlToStore = projectToUpdate.imageUrl; // Default to current image
+  let imageUrlToStore = projectToUpdate.imageUrl; 
   const imageFile = rawData.imageFile as File | null;
+  let oldImageToDelete: string | null = null;
 
   try {
-    // If a new file is provided, upload it and update imageUrlToStore
     if (imageFile && imageFile.size > 0) {
-      // Ideally, delete old image here if imageUrlToStore changes and old one existed
-      imageUrlToStore = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
+      // The handleImageUpload function will throw in production if an image is attempted
+      const newImageUrl = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
+      if (newImageUrl && newImageUrl !== projectToUpdate.imageUrl) {
+        oldImageToDelete = projectToUpdate.imageUrl; // Mark old image for deletion if new one is different
+        imageUrlToStore = newImageUrl;
+      }
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Image processing failed.';
-    return { success: false, message, errors: { imageFile: [message] } };
+    return { success: false, message, errors: { imageFile: [message], _form: [message] } };
   }
   
   const textDataToValidate = { ...rawData };
@@ -241,7 +262,7 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
         slug: slugToUse,
         shortDescription: data.shortDescription,
         description: data.description,
-        imageUrl: imageUrlToStore, // Updated image path
+        imageUrl: imageUrlToStore,
         dataAiHint: data.dataAiHint || null,
         technologies: technologiesArray,
         liveLink: data.liveLink || null,
@@ -253,9 +274,22 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       },
     });
 
+    // Attempt to delete the old image file if a new one was uploaded
+    if (oldImageToDelete && oldImageToDelete.startsWith('/uploads/projects/') && process.env.NODE_ENV !== 'production') {
+        const imagePath = path.join(process.cwd(), 'public', oldImageToDelete);
+        try {
+            await fs.unlink(imagePath);
+            console.log(`Deleted old image file: ${imagePath}`);
+        } catch (fileError: any) {
+            console.error(`Failed to delete old image file ${imagePath}: ${fileError.message}`);
+        }
+    }
+
+
     revalidatePath('/admin/projects');
     revalidatePath(`/admin/projects/edit/${id}`);
-    revalidatePath(`/projects/${updatedProject.slug}`);
+    revalidatePath(`/projects/${updatedProject.slug}`); // Revalidate public page
+    revalidatePath(`/`); // Revalidate home page if projects are listed there
 
     return {
       success: true,
@@ -266,16 +300,25 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
   } catch (e: unknown) {
     console.error('Failed to update project:', e);
     let message = 'Failed to update project. Please try again.';
-    let errors: ProjectActionResponse['errors'] = null;
+    let errors: ProjectActionResponse['errors'] = { _form: [] };
      if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === 'P2002') {
          const target = (e.meta?.target as string[]) || [];
          if (target.includes('slug')) {
             message = 'A project with this slug already exists.';
             errors = { slug: ['Slug already exists.'] };
-         } else { message = `A unique constraint violation occurred on field(s): ${target.join(', ')}.`;}
-      } else { message = `Database error: ${e.message}`; }
-    } else if (e instanceof Error) { message = e.message; }
+         } else { 
+            message = `A unique constraint violation occurred on field(s): ${target.join(', ')}.`;
+            if (errors._form) errors._form.push(message); else errors._form = [message];
+         }
+      } else { 
+        message = `Database error: ${e.message}`; 
+        if (errors._form) errors._form.push(message); else errors._form = [message];
+      }
+    } else if (e instanceof Error) { 
+      message = e.message; 
+      if (errors._form) errors._form.push(message); else errors._form = [message];
+    }
     return { success: false, message, errors };
   }
 }
@@ -287,23 +330,26 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
       return { success: false, message: "Project not found." };
     }
 
-    // Attempt to delete the image file
-    if (project.imageUrl && project.imageUrl.startsWith('/uploads/projects/')) {
+    // Attempt to delete the image file (only in non-production environments for local uploads)
+    if (project.imageUrl && project.imageUrl.startsWith('/uploads/projects/') && process.env.NODE_ENV !== 'production') {
         const imagePath = path.join(process.cwd(), 'public', project.imageUrl);
         try {
             await fs.unlink(imagePath);
             console.log(`Deleted image file: ${imagePath}`);
         } catch (fileError: any) {
-            // Log error but don't fail the whole operation if file deletion fails (e.g., file not found)
             console.error(`Failed to delete image file ${imagePath}: ${fileError.message}`);
         }
+    } else if (project.imageUrl && process.env.NODE_ENV === 'production') {
+        console.log(`Production environment: Image file ${project.imageUrl} on cloud storage would need manual deletion or a separate cleanup process.`);
     }
+
 
     await prisma.project.delete({
       where: { id },
     });
     revalidatePath('/admin/projects');
-    revalidatePath(`/projects/${project.slug}`); 
+    revalidatePath(`/projects/${project.slug}`); // Revalidate public page
+    revalidatePath(`/`); // Revalidate home page
     return { success: true, message: 'Project deleted successfully.' };
   } catch (e: unknown) {
     console.error('Failed to delete project:', e);

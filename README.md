@@ -129,6 +129,7 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 │   └── seed.ts
 ├── public/                 # Static assets (images, robots.txt, etc.)
 │   └── uploads/            # Local image uploads (for development)
+│   │   └── projects/       # Project-specific image uploads
 │   └── robots.txt
 ├── src/
 │   ├── ai/                 # Genkit AI flows and configuration (if used)
@@ -170,7 +171,7 @@ This is a personal portfolio website built with Next.js, featuring a dynamic fro
 ## Admin Panel
 
 *   **Access**: Navigate to `/admin`. You will be redirected to `/login` if not authenticated.
-*   **Authentication**: Uses email (`admin@gmail.com`) and password (`Admin@123`) after seeding.
+*   **Authentication**: Uses email (`admin@gmail.com`) and password (`Admin@123`) after seeding (stored in MongoDB).
 *   **Capabilities**:
     *   Manage Projects (Create, Read, Update, Delete, Image Upload).
     *   Manage Experience (Create, Read, Update, Delete).
@@ -200,15 +201,14 @@ This project is configured for easy deployment to Vercel.
     This ensures the Prisma client is generated and schema changes are pushed before the Next.js app is built, and then data is seeded. See "Database Seeding on Vercel" below for important considerations.
     *Note: The Prisma scripts in `package.json` have been updated to not rely on `dotenv-cli` for Vercel builds, as Vercel injects environment variables directly.*
 
-6.  **File Uploads (Important Consideration for Production)**:
-    The current project image upload implementation saves files to the local `public/uploads/` directory. This approach **will not work reliably on Vercel's serverless environment** because its filesystem is ephemeral (temporary). Uploaded files will be lost after a deployment or when the serverless function instance recycles.
-
-    **For production image hosting, you should use a cloud-based storage solution:**
-    *   **Vercel Blob**: Integrated directly with Vercel, good for ease of use.
-    *   **Cloudinary**: A popular service for image and video management with a generous free tier.
-    *   **AWS S3** (or Google Cloud Storage, Azure Blob Storage): Robust and scalable cloud storage.
-
-    You will need to modify the project image upload logic in `src/app/admin/projects/actions.ts` to upload files to your chosen cloud provider and store the returned URL in the database, instead of saving locally.
+6.  **File Uploads (CRITICAL for Production)**:
+    *   The current project image upload implementation saves files to the local `public/uploads/` directory. This approach **WILL NOT WORK on Vercel's serverless environment** because its filesystem is ephemeral (temporary) and often read-only. Uploaded files will be lost after a deployment or when the serverless function instance recycles.
+    *   **The server actions for creating/updating projects will throw an error if an image upload is attempted in a production environment (like Vercel) to prevent crashes and highlight this limitation.**
+    *   **For production image hosting, you MUST use a cloud-based storage solution:**
+        *   **Vercel Blob**: Integrated directly with Vercel, good for ease of use.
+        *   **Cloudinary**: A popular service for image and video management with a generous free tier.
+        *   **AWS S3** (or Google Cloud Storage, Azure Blob Storage): Robust and scalable cloud storage.
+    *   You will need to modify the image upload logic in `src/app/admin/projects/actions.ts` (specifically the `handleImageUpload` function) to use your chosen cloud provider's SDK to upload files and store the returned URL in the database, instead of saving locally.
 
 7.  **Database Seeding on Vercel**:
     The `build` script in `package.json` (`npm run prisma:generate && npm run prisma:dbpush && next build && npm run prisma:seed`) now includes steps to push schema changes and seed your database on every Vercel deployment.
@@ -247,3 +247,4 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 ```
 *(You would need to create a `LICENSE.md` file with the MIT license text if you choose to include this section).*
 
+```
