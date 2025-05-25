@@ -30,7 +30,7 @@ export async function createSkill(formData: SkillFormData): Promise<SkillActionR
   
   try {
     const existingSkill = await prisma.skill.findUnique({
-      where: { name: data.name }, // Assuming name is unique as per schema
+      where: { name: data.name },
     });
 
     if (existingSkill) {
@@ -51,6 +51,7 @@ export async function createSkill(formData: SkillFormData): Promise<SkillActionR
     });
     
     revalidatePath('/admin/skills');
+    revalidatePath('/'); // Revalidate homepage
     return {
       success: true,
       message: 'Skill created successfully!',
@@ -124,6 +125,7 @@ export async function updateSkill(id: string, formData: SkillFormData): Promise<
 
     revalidatePath('/admin/skills');
     revalidatePath(`/admin/skills/edit/${id}`);
+    revalidatePath('/'); // Revalidate homepage
     
     return {
       success: true,
@@ -164,6 +166,7 @@ export async function deleteSkill(id: string): Promise<{ success: boolean; messa
       where: { id },
     });
     revalidatePath('/admin/skills');
+    revalidatePath('/'); // Revalidate homepage
     return { success: true, message: 'Skill deleted successfully.' };
   } catch (e: unknown) {
     console.error('Failed to delete skill:', e);

@@ -52,6 +52,7 @@ export async function createExperience(formData: ExperienceFormData): Promise<Ex
     });
     
     revalidatePath('/admin/experience');
+    revalidatePath('/'); // Revalidate homepage
     return {
       success: true,
       message: 'Experience entry created successfully!',
@@ -130,6 +131,7 @@ export async function updateExperience(id: string, formData: ExperienceFormData)
 
     revalidatePath('/admin/experience');
     revalidatePath(`/admin/experience/edit/${id}`);
+    revalidatePath('/'); // Revalidate homepage
     
     return {
       success: true,
@@ -163,6 +165,7 @@ export async function deleteExperience(id: string): Promise<{ success: boolean; 
       where: { id },
     });
     revalidatePath('/admin/experience');
+    revalidatePath('/'); // Revalidate homepage
     return { success: true, message: 'Experience entry deleted successfully.' };
   } catch (e: unknown)
  {
