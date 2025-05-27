@@ -113,9 +113,11 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     if (imageFile && imageFile.size > 0) {
         console.log('[CreateProjectAction] Attempting image upload...');
         imageUrlToStore = await handleImageUpload(imageFile, null);
-        console.log('[CreateProjectAction] Image upload processed by handleImageUpload. Resulting URL:', imageUrlToStore);
+        console.log('[CreateProjectAction] Image upload processed. Resulting URL:', imageUrlToStore);
     } else {
         console.error('[CreateProjectAction] Image file validation: FAILED - Missing or empty image for create.');
+        // This was previously returning early. Now it will be caught by Zod validation if imageUrl is required.
+        // Or, if you want to enforce it before Zod:
         return {
             success: false,
             message: 'Project image is required for creation.',
@@ -124,8 +126,8 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     }
     
     if (!imageUrlToStore) {
-        console.error('[CreateProjectAction] Image URL to store is null after image handling stage.');
-        return { success: false, message: 'Image processing failed or image was not provided.', errors: { imageFile: ['Image processing failed or image was not provided.']}};
+        console.error('[CreateProjectAction] Image URL to store is null after image handling stage. This should not happen if an image was provided and processed.');
+        return { success: false, message: 'Image processing failed or image was not provided as required.', errors: { imageFile: ['Image processing failed or an image is required.']}};
     }
     console.log(`[CreateProjectAction] Image URL to store set to: ${imageUrlToStore}`);
 
@@ -198,10 +200,14 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     const newProject = await prisma.project.create({ data: projectDataToSave });
     console.log('[CreateProjectAction] Project created successfully in DB. ID:', newProject.id);
 
+    console.log('[CreateProjectAction] Attempting to revalidate paths...');
     revalidatePath('/admin/projects');
+    console.log('[CreateProjectAction] Revalidated /admin/projects');
     revalidatePath(`/projects/${newProject.slug}`); 
+    console.log(`[CreateProjectAction] Revalidated /projects/${newProject.slug}`);
     revalidatePath('/'); 
-    console.log('[CreateProjectAction] Paths revalidated: /admin/projects, /projects/[slug], /');
+    console.log('[CreateProjectAction] Revalidated /');
+    console.log('[CreateProjectAction] Paths revalidation calls completed.');
 
     return {
       success: true,
@@ -211,7 +217,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     };
 
   } catch (e: unknown) {
-    console.error('[CreateProjectAction] RAW EXCEPTION in createProject:', e);
+    console.error('[CreateProjectAction] UNHANDLED EXCEPTION in createProject:', e);
     let message = 'An unexpected server error occurred during project creation.';
     let errorDetails: ProjectActionResponse['errors'] = { _form: [message] };
 
@@ -279,7 +285,7 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
     if (imageFile && imageFile.size > 0) {
       console.log(`[UpdateProjectAction ID: ${id}] New image file provided. Attempting image upload...`);
       const newImageUrl = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
-      console.log(`[UpdateProjectAction ID: ${id}] Image upload processed by handleImageUpload for update. Resulting URL: ${newImageUrl}`);
+      console.log(`[UpdateProjectAction ID: ${id}] Image upload processed. Resulting URL: ${newImageUrl}`);
       
       if (newImageUrl && newImageUrl !== projectToUpdate.imageUrl) {
         if (projectToUpdate.imageUrl) { 
@@ -296,6 +302,13 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       console.log(`[UpdateProjectAction ID: ${id}] No new image file provided, keeping existing image URL: ${imageUrlToStore}`);
     }
     
+    // If imageUrlToStore is still null after attempting to keep existing or process new, and it's required:
+    if (!imageUrlToStore) {
+        console.error(`[UpdateProjectAction ID: ${id}] Image URL is null. This might happen if no new image was provided and the project initially had no image.`);
+        return { success: false, message: 'Project image is required.', errors: { imageFile: ['Project image is required or could not be processed.']}};
+    }
+
+
     const textDataToValidate = { ...rawData };
     delete textDataToValidate.imageFile;
     if (textDataToValidate.hasOwnProperty('currentImageUrl')) {
@@ -353,7 +366,7 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       slug: slugToUse,
       shortDescription: data.shortDescription,
       description: data.description,
-      imageUrl: imageUrlToStore,
+      imageUrl: imageUrlToStore, // Will be string path from Vercel Blob or local
       dataAiHint: data.dataAiHint || null,
       technologies: technologiesArray,
       liveLink: data.liveLink || null,
@@ -363,7 +376,7 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       detailsImages: detailsImagesArray,
       features: featuresArray,
     };
-    console.log(`[UpdateProjectAction ID: ${id}] Preparing to update project in DB with data:`, projectDataToUpdate);
+    console.log(`[UpdateProjectAction ID: ${id}] Preparing to update project in DB with data:`, JSON.stringify(projectDataToUpdate, null, 2));
     const updatedProject = await prisma.project.update({
       where: { id },
       data: projectDataToUpdate,
@@ -391,14 +404,21 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       }
     }
 
+    console.log(`[UpdateProjectAction ID: ${id}] Attempting to revalidate paths...`);
     revalidatePath('/admin/projects');
+    console.log(`[UpdateProjectAction ID: ${id}] Revalidated /admin/projects`);
     revalidatePath(`/admin/projects/edit/${id}`);
+    console.log(`[UpdateProjectAction ID: ${id}] Revalidated /admin/projects/edit/${id}`);
     revalidatePath(`/projects/${updatedProject.slug}`);
+    console.log(`[UpdateProjectAction ID: ${id}] Revalidated /projects/${updatedProject.slug}`);
     if (projectToUpdate.slug !== updatedProject.slug) {
-        revalidatePath(`/projects/${projectToUpdate.slug}`); // Revalidate old slug path if it changed
+        revalidatePath(`/projects/${projectToUpdate.slug}`); 
+        console.log(`[UpdateProjectAction ID: ${id}] Revalidated old slug path /projects/${projectToUpdate.slug}`);
     }
     revalidatePath('/');
-    console.log(`[UpdateProjectAction ID: ${id}] Paths revalidated.`);
+    console.log(`[UpdateProjectAction ID: ${id}] Revalidated /`);
+    console.log(`[UpdateProjectAction ID: ${id}] Paths revalidation calls completed.`);
+
 
     return {
       success: true,
@@ -408,7 +428,7 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
     };
 
   } catch (e: unknown) {
-    console.error(`[UpdateProjectAction ID: ${id}] RAW EXCEPTION in updateProject:`, e);
+    console.error(`[UpdateProjectAction ID: ${id}] UNHANDLED EXCEPTION in updateProject:`, e);
     let message = 'An unexpected server error occurred during project update.';
     let errorDetails: ProjectActionResponse['errors'] = { _form: [message] };
 
@@ -489,15 +509,20 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
       }
     }
 
+    console.log(`[DeleteProjectAction ID: ${id}] Attempting to revalidate paths...`);
     revalidatePath('/admin/projects');
+    console.log(`[DeleteProjectAction ID: ${id}] Revalidated /admin/projects`);
     if (projectSlugForRevalidation) {
       revalidatePath(`/projects/${projectSlugForRevalidation}`);
+      console.log(`[DeleteProjectAction ID: ${id}] Revalidated /projects/${projectSlugForRevalidation}`);
     }
     revalidatePath('/');
-    console.log(`[DeleteProjectAction ID: ${id}] Paths revalidated.`);
+    console.log(`[DeleteProjectAction ID: ${id}] Revalidated /`);
+    console.log(`[DeleteProjectAction ID: ${id}] Paths revalidation calls completed.`);
+
     return { success: true, message: 'Project deleted successfully.' };
   } catch (e: unknown) {
-    console.error(`[DeleteProjectAction ID: ${id}] RAW EXCEPTION in deleteProject:`, e);
+    console.error(`[DeleteProjectAction ID: ${id}] UNHANDLED EXCEPTION in deleteProject:`, e);
      let message = 'Failed to delete project. Please try again.';
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
         message = `Database error (Code: ${e.code}): ${e.message}`;
@@ -511,4 +536,6 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
     return { success: false, message };
   }
 }
+    
+
     

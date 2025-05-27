@@ -56,9 +56,13 @@ export async function createSkill(formData: SkillFormData): Promise<SkillActionR
     const newSkill = await prisma.skill.create({ data: skillDataToSave });
     console.log('[CreateSkillAction] Skill created successfully in DB. ID:', newSkill.id);
     
+    console.log('[CreateSkillAction] Attempting to revalidate paths...');
     revalidatePath('/admin/skills');
+    console.log('[CreateSkillAction] Revalidated /admin/skills');
     revalidatePath('/'); 
-    console.log('[CreateSkillAction] Paths revalidated: /admin/skills, /');
+    console.log('[CreateSkillAction] Revalidated /');
+    console.log('[CreateSkillAction] Paths revalidation calls completed.');
+
     return {
       success: true,
       message: 'Skill created successfully!',
@@ -67,7 +71,7 @@ export async function createSkill(formData: SkillFormData): Promise<SkillActionR
     };
 
   } catch (e: unknown) {
-    console.error('[CreateSkillAction] RAW EXCEPTION:', e);
+    console.error('[CreateSkillAction] UNHANDLED EXCEPTION:', e);
     let message = 'Failed to create skill. Please try again.';
     let errors: Partial<Record<keyof SkillFormData, string[]>> | null = null;
 
@@ -140,10 +144,14 @@ export async function updateSkill(id: string, formData: SkillFormData): Promise<
     });
     console.log(`[UpdateSkillAction ID: ${id}] Skill updated successfully in DB.`);
 
+    console.log(`[UpdateSkillAction ID: ${id}] Attempting to revalidate paths...`);
     revalidatePath('/admin/skills');
+    console.log(`[UpdateSkillAction ID: ${id}] Revalidated /admin/skills`);
     revalidatePath(`/admin/skills/edit/${id}`);
+    console.log(`[UpdateSkillAction ID: ${id}] Revalidated /admin/skills/edit/${id}`);
     revalidatePath('/'); 
-    console.log(`[UpdateSkillAction ID: ${id}] Paths revalidated.`);
+    console.log(`[UpdateSkillAction ID: ${id}] Revalidated /`);
+    console.log(`[UpdateSkillAction ID: ${id}] Paths revalidation calls completed.`);
     
     return {
       success: true,
@@ -153,7 +161,7 @@ export async function updateSkill(id: string, formData: SkillFormData): Promise<
     };
 
   } catch (e: unknown) {
-    console.error(`[UpdateSkillAction ID: ${id}] RAW EXCEPTION:`, e);
+    console.error(`[UpdateSkillAction ID: ${id}] UNHANDLED EXCEPTION:`, e);
     let message = 'Failed to update skill. Please try again.';
     let errors: Partial<Record<keyof SkillFormData, string[]>> | null = null;
 
@@ -187,12 +195,17 @@ export async function deleteSkill(id: string): Promise<{ success: boolean; messa
       where: { id },
     });
     console.log(`[DeleteSkillAction ID: ${id}] Skill deleted successfully from DB.`);
+
+    console.log(`[DeleteSkillAction ID: ${id}] Attempting to revalidate paths...`);
     revalidatePath('/admin/skills');
+    console.log(`[DeleteSkillAction ID: ${id}] Revalidated /admin/skills`);
     revalidatePath('/'); 
-    console.log(`[DeleteSkillAction ID: ${id}] Paths revalidated.`);
+    console.log(`[DeleteSkillAction ID: ${id}] Revalidated /`);
+    console.log(`[DeleteSkillAction ID: ${id}] Paths revalidation calls completed.`);
+
     return { success: true, message: 'Skill deleted successfully.' };
   } catch (e: unknown) {
-    console.error(`[DeleteSkillAction ID: ${id}] RAW EXCEPTION:`, e);
+    console.error(`[DeleteSkillAction ID: ${id}] UNHANDLED EXCEPTION:`, e);
     let message = 'Failed to delete skill. Please try again.';
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2025') { 
@@ -207,3 +220,5 @@ export async function deleteSkill(id: string): Promise<{ success: boolean; messa
     return { success: false, message };
   }
 }
+
+    

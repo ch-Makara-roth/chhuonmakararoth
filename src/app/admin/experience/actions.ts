@@ -56,9 +56,13 @@ export async function createExperience(formData: ExperienceFormData): Promise<Ex
     const newExperience = await prisma.experience.create({ data: experienceDataToSave });
     console.log('[CreateExperienceAction] Experience entry created successfully in DB. ID:', newExperience.id);
     
+    console.log('[CreateExperienceAction] Attempting to revalidate paths...');
     revalidatePath('/admin/experience');
+    console.log('[CreateExperienceAction] Revalidated /admin/experience');
     revalidatePath('/'); 
-    console.log('[CreateExperienceAction] Paths revalidated: /admin/experience, /');
+    console.log('[CreateExperienceAction] Revalidated /');
+    console.log('[CreateExperienceAction] Paths revalidation calls completed.');
+
     return {
       success: true,
       message: 'Experience entry created successfully!',
@@ -67,7 +71,7 @@ export async function createExperience(formData: ExperienceFormData): Promise<Ex
     };
 
   } catch (e: unknown) {
-    console.error('[CreateExperienceAction] RAW EXCEPTION:', e);
+    console.error('[CreateExperienceAction] UNHANDLED EXCEPTION:', e);
     let message = 'Failed to create experience entry. Please try again.';
     let errors: Partial<Record<keyof ExperienceFormData, string[]>> | null = null;
      if (e instanceof Prisma.PrismaClientKnownRequestError) {
@@ -148,10 +152,14 @@ export async function updateExperience(id: string, formData: ExperienceFormData)
     });
     console.log(`[UpdateExperienceAction ID: ${id}] Experience entry updated successfully in DB.`);
 
+    console.log(`[UpdateExperienceAction ID: ${id}] Attempting to revalidate paths...`);
     revalidatePath('/admin/experience');
+    console.log(`[UpdateExperienceAction ID: ${id}] Revalidated /admin/experience`);
     revalidatePath(`/admin/experience/edit/${id}`);
+    console.log(`[UpdateExperienceAction ID: ${id}] Revalidated /admin/experience/edit/${id}`);
     revalidatePath('/'); 
-    console.log(`[UpdateExperienceAction ID: ${id}] Paths revalidated.`);
+    console.log(`[UpdateExperienceAction ID: ${id}] Revalidated /`);
+    console.log(`[UpdateExperienceAction ID: ${id}] Paths revalidation calls completed.`);
     
     return {
       success: true,
@@ -161,7 +169,7 @@ export async function updateExperience(id: string, formData: ExperienceFormData)
     };
 
   } catch (e: unknown) {
-    console.error(`[UpdateExperienceAction ID: ${id}] RAW EXCEPTION:`, e);
+    console.error(`[UpdateExperienceAction ID: ${id}] UNHANDLED EXCEPTION:`, e);
     let message = 'Failed to update experience entry. Please try again.';
     let errors: Partial<Record<keyof ExperienceFormData, string[]>> | null = null;
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
@@ -190,12 +198,17 @@ export async function deleteExperience(id: string): Promise<{ success: boolean; 
       where: { id },
     });
     console.log(`[DeleteExperienceAction ID: ${id}] Experience entry deleted successfully from DB.`);
+
+    console.log(`[DeleteExperienceAction ID: ${id}] Attempting to revalidate paths...`);
     revalidatePath('/admin/experience');
+    console.log(`[DeleteExperienceAction ID: ${id}] Revalidated /admin/experience`);
     revalidatePath('/'); 
-    console.log(`[DeleteExperienceAction ID: ${id}] Paths revalidated.`);
+    console.log(`[DeleteExperienceAction ID: ${id}] Revalidated /`);
+    console.log(`[DeleteExperienceAction ID: ${id}] Paths revalidation calls completed.`);
+
     return { success: true, message: 'Experience entry deleted successfully.' };
   } catch (e: unknown) {
-    console.error(`[DeleteExperienceAction ID: ${id}] RAW EXCEPTION:`, e);
+    console.error(`[DeleteExperienceAction ID: ${id}] UNHANDLED EXCEPTION:`, e);
     let message = 'Failed to delete experience entry. Please try again.';
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2025') { 
@@ -210,3 +223,5 @@ export async function deleteExperience(id: string): Promise<{ success: boolean; 
     return { success: false, message };
   }
 }
+
+    
