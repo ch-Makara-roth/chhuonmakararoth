@@ -37,12 +37,14 @@ async function handleImageUpload(imageFile: File | null, existingImageUrl?: stri
   console.log(`[HandleImageUpload] New image file: ${imageFile.name}, size: ${imageFile.size}, type: ${imageFile.type}`);
 
   if (imageFile.size > MAX_FILE_SIZE_BYTES) {
-    console.error('[HandleImageUpload] Image size exceeds limit.');
-    throw new Error(`Image size exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB limit.`);
+    const errorMsg = `Image size exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB limit.`;
+    console.error('[HandleImageUpload]', errorMsg);
+    throw new Error(errorMsg);
   }
   if (!ACCEPTED_IMAGE_TYPES.includes(imageFile.type)) {
-    console.error('[HandleImageUpload] Invalid image type.');
-    throw new Error(`Invalid image type. Accepted types: ${ACCEPTED_IMAGE_TYPES.join(', ')}`);
+    const errorMsg = `Invalid image type. Accepted types: ${ACCEPTED_IMAGE_TYPES.join(', ')}`;
+    console.error('[HandleImageUpload]', errorMsg);
+    throw new Error(errorMsg);
   }
 
   const fileExtension = path.extname(imageFile.name);
@@ -69,12 +71,14 @@ async function handleImageUpload(imageFile: File | null, existingImageUrl?: stri
     const uploadDir = path.join(process.cwd(), 'public/uploads/projects');
     try {
       await fs.mkdir(uploadDir, { recursive: true });
+      console.log(`[HandleImageUpload] DEVELOPMENT: Ensured directory exists: ${uploadDir}`);
     } catch (mkdirError) {
       console.error(`[HandleImageUpload] DEVELOPMENT: Failed to create directory ${uploadDir}:`, mkdirError);
       throw new Error(`Failed to create upload directory: ${(mkdirError as Error).message}`);
     }
+    
     const filePath = path.join(uploadDir, filename);
-
+    console.log(`[HandleImageUpload] DEVELOPMENT: Preparing to write file to: ${filePath}`);
     try {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       await writeFile(filePath, buffer);
@@ -92,19 +96,13 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
   console.log('[CreateProjectAction] Entered function.');
   try {
     console.log('[CreateProjectAction] Received FormData. Keys:', Array.from(formData.keys()));
-    formData.forEach((value, key) => {
-      if (typeof value === 'string') {
-        console.log(`[CreateProjectAction] FormData field - ${key}: "${value}"`);
-      } else if (value instanceof File) {
-        console.log(`[CreateProjectAction] FormData file - ${key}: name=${value.name}, size=${value.size}, type=${value.type}`);
-      }
-    });
-
     const rawData: Record<string, any> = {};
     formData.forEach((value, key) => {
       if (key === 'imageFile' && value instanceof File && value.size > 0) {
+        console.log(`[CreateProjectAction] FormData file - ${key}: name=${value.name}, size=${value.size}, type=${value.type}`);
         rawData[key] = value;
       } else if (key !== 'imageFile') {
+        console.log(`[CreateProjectAction] FormData field - ${key}: "${value}"`);
         rawData[key] = value;
       }
     });
@@ -113,10 +111,10 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     let imageUrlToStore: string | null | undefined = null;
 
     if (imageFile && imageFile.size > 0) {
+        console.log('[CreateProjectAction] Attempting image upload...');
         imageUrlToStore = await handleImageUpload(imageFile, null);
-        console.log('[CreateProjectAction] Image upload processed by handleImageUpload.');
+        console.log('[CreateProjectAction] Image upload processed by handleImageUpload. Resulting URL:', imageUrlToStore);
     } else {
-        // If image is required for creation and not provided or empty
         console.error('[CreateProjectAction] Image file validation: FAILED - Missing or empty image for create.');
         return {
             success: false,
@@ -126,7 +124,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     }
     
     if (!imageUrlToStore) {
-         console.error('[CreateProjectAction] Image URL to store is null after image handling stage (e.g. upload failed or image not provided).');
+        console.error('[CreateProjectAction] Image URL to store is null after image handling stage.');
         return { success: false, message: 'Image processing failed or image was not provided.', errors: { imageFile: ['Image processing failed or image was not provided.']}};
     }
     console.log(`[CreateProjectAction] Image URL to store set to: ${imageUrlToStore}`);
@@ -173,7 +171,7 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       const urls = data.detailsImagesString.split(',').map(s => s.trim()).filter(s => s.length > 0);
       urls.forEach(url => {
         try {
-          new URL(url); // Validate if it's a URL
+          new URL(url); 
           detailsImagesArray.push(url);
         } catch (_) {
           console.warn(`[CreateProjectAction] Invalid URL in detailsImagesString skipped: ${url}`);
@@ -181,24 +179,23 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       });
     }
     
-    console.log('[CreateProjectAction] Preparing to create project in DB...');
-    const newProject = await prisma.project.create({
-      data: {
-        title: data.title,
-        slug: slug,
-        shortDescription: data.shortDescription,
-        description: data.description,
-        imageUrl: imageUrlToStore, 
-        dataAiHint: data.dataAiHint || null,
-        technologies: technologiesArray,
-        liveLink: data.liveLink || null,
-        repoLink: data.repoLink || null,
-        startDate: data.startDate,
-        endDate: data.endDate || null,
-        detailsImages: detailsImagesArray,
-        features: featuresArray,
-      },
-    });
+    const projectDataToSave = {
+      title: data.title,
+      slug: slug,
+      shortDescription: data.shortDescription,
+      description: data.description,
+      imageUrl: imageUrlToStore, 
+      dataAiHint: data.dataAiHint || null,
+      technologies: technologiesArray,
+      liveLink: data.liveLink || null,
+      repoLink: data.repoLink || null,
+      startDate: data.startDate,
+      endDate: data.endDate || null,
+      detailsImages: detailsImagesArray,
+      features: featuresArray,
+    };
+    console.log('[CreateProjectAction] Preparing to create project in DB with data:', projectDataToSave);
+    const newProject = await prisma.project.create({ data: projectDataToSave });
     console.log('[CreateProjectAction] Project created successfully in DB. ID:', newProject.id);
 
     revalidatePath('/admin/projects');
@@ -210,10 +207,11 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       success: true,
       message: 'Project created successfully!',
       projectId: newProject.id,
+      errors: null,
     };
 
   } catch (e: unknown) {
-    console.error('[CreateProjectAction] UNHANDLED EXCEPTION in createProject:', e);
+    console.error('[CreateProjectAction] RAW EXCEPTION in createProject:', e);
     let message = 'An unexpected server error occurred during project creation.';
     let errorDetails: ProjectActionResponse['errors'] = { _form: [message] };
 
@@ -232,7 +230,6 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       }
     } else if (e instanceof Error) {
       message = e.message;
-      // Check if the error is from handleImageUpload (e.g., size/type validation)
       if (message.startsWith("Image size exceeds") || message.startsWith("Invalid image type") || message.startsWith("Image upload to cloud storage failed") || message.startsWith("Failed to create upload directory") || message.startsWith("Failed to write image file locally")) {
         errorDetails = { imageFile: [message] };
       } else {
@@ -256,36 +253,33 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
   console.log(`[UpdateProjectAction ID: ${id}] Entered function.`);
   try {
     console.log(`[UpdateProjectAction ID: ${id}] Received FormData. Keys:`, Array.from(formData.keys()));
+    const rawData: Record<string, any> = {};
     formData.forEach((value, key) => {
-      if (typeof value === 'string') {
-        console.log(`[UpdateProjectAction ID: ${id}] FormData field - ${key}: "${value}"`);
-      } else if (value instanceof File) {
+      if (key === 'imageFile' && value instanceof File && value.size > 0) {
         console.log(`[UpdateProjectAction ID: ${id}] FormData file - ${key}: name=${value.name}, size=${value.size}, type=${value.type}`);
+        rawData[key] = value;
+      } else if (key !== 'imageFile') {
+         console.log(`[UpdateProjectAction ID: ${id}] FormData field - ${key}: "${value}"`);
+        rawData[key] = value;
       }
     });
 
+    console.log(`[UpdateProjectAction ID: ${id}] Fetching project to update...`);
     const projectToUpdate = await prisma.project.findUnique({ where: { id } });
     if (!projectToUpdate) {
       console.error(`[UpdateProjectAction ID: ${id}] Project not found for update.`);
       return { success: false, message: 'Project not found.', errors: {_form: ['Project not found.']} };
     }
-
-    const rawData: Record<string, any> = {};
-    formData.forEach((value, key) => {
-      if (key === 'imageFile' && value instanceof File && value.size > 0) {
-        rawData[key] = value;
-      } else if (key !== 'imageFile') {
-        rawData[key] = value;
-      }
-    });
+    console.log(`[UpdateProjectAction ID: ${id}] Found project to update. Current imageUrl: ${projectToUpdate.imageUrl}`);
 
     let imageUrlToStore = projectToUpdate.imageUrl;
     const imageFile = rawData.imageFile as File | null;
     let oldImageToDelete: string | null = null;
 
     if (imageFile && imageFile.size > 0) {
+      console.log(`[UpdateProjectAction ID: ${id}] New image file provided. Attempting image upload...`);
       const newImageUrl = await handleImageUpload(imageFile, projectToUpdate.imageUrl);
-      console.log(`[UpdateProjectAction ID: ${id}] Image upload attempted by handleImageUpload for update.`);
+      console.log(`[UpdateProjectAction ID: ${id}] Image upload processed by handleImageUpload for update. Resulting URL: ${newImageUrl}`);
       
       if (newImageUrl && newImageUrl !== projectToUpdate.imageUrl) {
         if (projectToUpdate.imageUrl) { 
@@ -296,10 +290,7 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       } else if (newImageUrl === projectToUpdate.imageUrl) {
         console.log(`[UpdateProjectAction ID: ${id}] Uploaded image resulted in the same URL or existing URL was returned. No change to imageUrl or oldImageToDelete.`);
       } else {
-        // handleImageUpload might have thrown an error (e.g. validation) or returned undefined if existingImageUrl was kept
-        // if newImageUrl is undefined here and it was supposed to be a new image, something went wrong or it was invalid
-        // but handleImageUpload should throw an error for invalid files which would be caught by the outer try/catch
-        console.log(`[UpdateProjectAction ID: ${id}] No new image URL was generated, or existing image was kept by handleImageUpload.`);
+        console.log(`[UpdateProjectAction ID: ${id}] No new image URL was generated by handleImageUpload, or existing image was kept. Current imageUrlToStore: ${imageUrlToStore}`);
       }
     } else {
       console.log(`[UpdateProjectAction ID: ${id}] No new image file provided, keeping existing image URL: ${imageUrlToStore}`);
@@ -333,11 +324,13 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
     console.log(`[UpdateProjectAction ID: ${id}] Using slug: ${slugToUse}`);
 
     if (slugToUse !== projectToUpdate.slug) {
+      console.log(`[UpdateProjectAction ID: ${id}] Slug changed. Checking for conflicts with new slug: ${slugToUse}`);
       const projectWithNewSlug = await prisma.project.findFirst({ where: { slug: slugToUse, NOT: { id } } });
       if (projectWithNewSlug) {
         console.error(`[UpdateProjectAction ID: ${id}] Slug conflict: "${slugToUse}" already exists for another project.`);
         return { success: false, message: 'Another project with this slug already exists.', errors: { slug: ['Slug already exists.'] } };
       }
+      console.log(`[UpdateProjectAction ID: ${id}] New slug ${slugToUse} is unique.`);
     }
 
     const technologiesArray = data.technologies ? data.technologies.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
@@ -355,24 +348,25 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       });
     }
     
-    console.log(`[UpdateProjectAction ID: ${id}] Preparing to update project in DB...`);
+    const projectDataToUpdate = {
+      title: data.title,
+      slug: slugToUse,
+      shortDescription: data.shortDescription,
+      description: data.description,
+      imageUrl: imageUrlToStore,
+      dataAiHint: data.dataAiHint || null,
+      technologies: technologiesArray,
+      liveLink: data.liveLink || null,
+      repoLink: data.repoLink || null,
+      startDate: data.startDate,
+      endDate: data.endDate || null,
+      detailsImages: detailsImagesArray,
+      features: featuresArray,
+    };
+    console.log(`[UpdateProjectAction ID: ${id}] Preparing to update project in DB with data:`, projectDataToUpdate);
     const updatedProject = await prisma.project.update({
       where: { id },
-      data: {
-        title: data.title,
-        slug: slugToUse,
-        shortDescription: data.shortDescription,
-        description: data.description,
-        imageUrl: imageUrlToStore,
-        dataAiHint: data.dataAiHint || null,
-        technologies: technologiesArray,
-        liveLink: data.liveLink || null,
-        repoLink: data.repoLink || null,
-        startDate: data.startDate,
-        endDate: data.endDate || null,
-        detailsImages: detailsImagesArray,
-        features: featuresArray,
-      },
+      data: projectDataToUpdate,
     });
     console.log(`[UpdateProjectAction ID: ${id}] Project updated successfully in DB.`);
 
@@ -387,6 +381,7 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
         }
       } else if (process.env.NODE_ENV !== 'production' && oldImageToDelete.startsWith('/uploads/projects/')) { 
         const imagePath = path.join(process.cwd(), 'public', oldImageToDelete);
+        console.log(`[UpdateProjectAction ID: ${id}] Attempting to delete old local image file: ${imagePath}`);
         try {
             await fs.unlink(imagePath);
             console.log(`[UpdateProjectAction ID: ${id}] Deleted old local image file: ${imagePath}`);
@@ -399,6 +394,9 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
     revalidatePath('/admin/projects');
     revalidatePath(`/admin/projects/edit/${id}`);
     revalidatePath(`/projects/${updatedProject.slug}`);
+    if (projectToUpdate.slug !== updatedProject.slug) {
+        revalidatePath(`/projects/${projectToUpdate.slug}`); // Revalidate old slug path if it changed
+    }
     revalidatePath('/');
     console.log(`[UpdateProjectAction ID: ${id}] Paths revalidated.`);
 
@@ -406,10 +404,11 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       success: true,
       message: 'Project updated successfully!',
       projectId: updatedProject.id,
+      errors: null,
     };
 
   } catch (e: unknown) {
-    console.error(`[UpdateProjectAction ID: ${id}] UNHANDLED EXCEPTION in updateProject:`, e);
+    console.error(`[UpdateProjectAction ID: ${id}] RAW EXCEPTION in updateProject:`, e);
     let message = 'An unexpected server error occurred during project update.';
     let errorDetails: ProjectActionResponse['errors'] = { _form: [message] };
 
@@ -431,7 +430,6 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
       }
     } else if (e instanceof Error) {
       message = e.message;
-      // Check if the error is from handleImageUpload (e.g., size/type validation)
       if (message.startsWith("Image size exceeds") || message.startsWith("Invalid image type") || message.startsWith("Image upload to cloud storage failed") || message.startsWith("Failed to create upload directory") || message.startsWith("Failed to write image file locally")) {
         errorDetails = { imageFile: [message] };
       } else {
@@ -450,19 +448,20 @@ export async function updateProject(id: string, formData: FormData): Promise<Pro
 export async function deleteProject(id: string): Promise<{ success: boolean; message: string }> {
   console.log(`[DeleteProjectAction ID: ${id}] Attempting to delete project.`);
   let projectSlugForRevalidation: string | null = null;
+  let imageUrlToDelete: string | null = null;
   try {
+    console.log(`[DeleteProjectAction ID: ${id}] Fetching project to delete...`);
     const project = await prisma.project.findUnique({ where: {id}});
     if (!project) {
       console.error(`[DeleteProjectAction ID: ${id}] Project not found.`);
       return { success: false, message: "Project not found." };
     }
-    projectSlugForRevalidation = project.slug; // Store slug before deletion
+    console.log(`[DeleteProjectAction ID: ${id}] Found project to delete: ${project.title}`);
+    projectSlugForRevalidation = project.slug; 
+    imageUrlToDelete = project.imageUrl;
 
-    const imageUrlToDelete = project.imageUrl;
-
-    await prisma.project.delete({
-      where: { id },
-    });
+    console.log(`[DeleteProjectAction ID: ${id}] Deleting project from DB...`);
+    await prisma.project.delete({ where: { id } });
     console.log(`[DeleteProjectAction ID: ${id}] Project deleted successfully from DB.`);
 
     if (imageUrlToDelete) {
@@ -472,10 +471,11 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
           await del(imageUrlToDelete);
           console.log(`[DeleteProjectAction ID: ${id}] Deleted Vercel Blob image: ${imageUrlToDelete}`);
         } catch (blobError: any) {
-          console.error(`[DeleteProjectAction ID: ${id}] Failed to delete Vercel Blob image ${imageUrlToDelete}: ${blobError.message || blobError}`);
+          console.error(`[DeleteProjectAction ID: ${id}] Failed to delete Vercel Blob image ${imageUrlToDelete}: ${blobError.message || blobError}. Continuing without failing delete action.`);
         }
       } else if (process.env.NODE_ENV !== 'production' && imageUrlToDelete.startsWith('/uploads/projects/')) {
         const imagePath = path.join(process.cwd(), 'public', imageUrlToDelete);
+        console.log(`[DeleteProjectAction ID: ${id}] Attempting to delete local image file: ${imagePath}`);
         try {
             await fs.unlink(imagePath);
             console.log(`[DeleteProjectAction ID: ${id}] Deleted local image file: ${imagePath}`);
@@ -483,7 +483,7 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
             if ((fileError as NodeJS.ErrnoException).code === 'ENOENT') {
               console.warn(`[DeleteProjectAction ID: ${id}] Local image file not found (may have been already deleted): ${imagePath}`);
             } else {
-              console.error(`[DeleteProjectAction ID: ${id}] Failed to delete local image file ${imagePath}: ${fileError.message || fileError}`);
+              console.error(`[DeleteProjectAction ID: ${id}] Failed to delete local image file ${imagePath}: ${fileError.message || fileError}. Continuing without failing delete action.`);
             }
         }
       }
@@ -497,7 +497,7 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
     console.log(`[DeleteProjectAction ID: ${id}] Paths revalidated.`);
     return { success: true, message: 'Project deleted successfully.' };
   } catch (e: unknown) {
-    console.error(`[DeleteProjectAction ID: ${id}] UNHANDLED EXCEPTION in deleteProject:`, e);
+    console.error(`[DeleteProjectAction ID: ${id}] RAW EXCEPTION in deleteProject:`, e);
      let message = 'Failed to delete project. Please try again.';
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
         message = `Database error (Code: ${e.code}): ${e.message}`;
@@ -507,11 +507,8 @@ export async function deleteProject(id: string): Promise<{ success: boolean; mes
     } else if (e instanceof Error) {
       message = e.message;
     }
+    console.error(`[DeleteProjectAction ID: ${id}] Final error response: Success=false, Message="${message}"`);
     return { success: false, message };
   }
 }
-    
-
-    
-
     
