@@ -1,38 +1,45 @@
+version: '3.8'
+
 services:
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+      - uploads_data:/usr/share/nginx/html/uploads:ro
+    depends_on:
+      - app
+    networks:
+      - app-network
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=mongodb://mongodb:27017/portfolio?replicaSet=rs0&authSource=admin
-      - MONGODB_URI=mongodb://mongodb:27017/portfolio?replicaSet=rs0&authSource=admin
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-nextauth-secret-key-change-this}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - DATABASE_URL=mongodb://mongodb:27017/portfolio?replicaSet=rs0
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MONGODB_URI=mongodb://mongodb:27017/portfolio?replicaSet=rs0
     depends_on:
       mongodb:
         condition: service_healthy
-      mongo-init:
-        condition: service_completed_successfully
     volumes:
-      - ./public/uploads:/app/public/uploads
+      - uploads_data:/app/public/uploads
       - app_logs:/app/logs
     networks:
       - app-network
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3000/health",
-        ]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,17 +48,17 @@ services:
   mongodb:
     image: mongo:6
     restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=portfolio
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-    environment:
-      - MONGO_INITDB_DATABASE=portfolio
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-password123}
-    command: ["--replSet", "rs0", "--bind_ip_all"]
+    command: ["--replSet", "rs0", "--bind_ip_all", "--auth"]
     networks:
       - app-network
     healthcheck:
@@ -67,6 +74,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    volumes:
+      - ./scripts:/scripts
     networks:
       - app-network
     command: >
@@ -84,12 +93,33 @@ services:
       "
     restart: "no"
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   mongodb_data:
     driver: local
   mongodb_config:
     driver: local
+  uploads_data:
+    driver: local
+  nginx_logs:
+    driver: local
   app_logs:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

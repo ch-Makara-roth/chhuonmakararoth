@@ -1,9 +1,8 @@
-
-import type {NextConfig} from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'standalone', // Enable standalone output for Docker
+  output: "standalone", // Enable standalone output for Docker
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -13,16 +12,16 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "placehold.co",
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: '*.public.blob.vercel-storage.com', // Allow all Vercel Blob store hostnames
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "*.public.blob.vercel-storage.com", // Allow all Vercel Blob store hostnames
+        port: "",
+        pathname: "/**",
       },
     ],
   },
