@@ -111,3 +111,37 @@
     @apply font-bold text-primary animate-blink;
   }
 }
+/* Custom styles for the split pane */
+.Resizer {
+  background: #555;
+  opacity: 0.5;
+  z-index: 1;
+  box-sizing: border-box;
+  background-clip: padding-box;
+}
+
+.Resizer:hover {
+  transition: all 0.3s ease;
+  opacity: 1;
+}
+
+.Resizer.horizontal {
+  height: 11px;
+  margin: -5px 0;
+  cursor: row-resize;
+  width: 100%;
+}
+
+.Resizer.vertical {
+  width: 11px;
+  margin: 0 -5px;
+  cursor: col-resize;
+}
+
+.Resizer.disabled {
+  cursor: not-allowed;
+}
+
+.Resizer.disabled:hover {
+  border-color: transparent;
+}

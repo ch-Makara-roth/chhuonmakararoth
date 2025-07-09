@@ -40,8 +40,9 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: { params: { slug: string, lang: string } }): Promise<Metadata> {
-  const project = await getProject(params.slug);
-  const { t } = await initTranslations(params.lang, [defaultNS]);
+  const { slug, lang } = await params;
+  const project = await getProject(slug);
+  const { t } = await initTranslations(lang, [defaultNS]);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
   if (!project) {
@@ -54,7 +55,7 @@ export async function generateMetadata({ params }: { params: { slug: string, lan
   const projectTitle = project.title;
   const pageTitle = `${projectTitle} - ${t('header.appName')}`;
   const pageDescription = project.shortDescription;
-  const projectUrlPath = params.lang === defaultLocale ? `/projects/${project.slug}` : `/${params.lang}/projects/${project.slug}`;
+  const projectUrlPath = lang === defaultLocale ? `/projects/${project.slug}` : `/${lang}/projects/${project.slug}`;
   const fullProjectUrl = appUrl ? `${appUrl}${projectUrlPath}` : undefined;
 
 
@@ -78,7 +79,7 @@ export async function generateMetadata({ params }: { params: { slug: string, lan
           alt: projectTitle,
         },
       ] : [],
-      locale: params.lang,
+      locale: lang,
       type: 'article', // More specific type for a project page
       // publishedTime: project.createdAt?.toISOString(), // Optional: if you have a createdAt field
       // modifiedTime: project.updatedAt?.toISOString(), // Optional: if you have an updatedAt field
@@ -98,7 +99,7 @@ interface ProjectDetailPageProps {
 }
 
 export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
-  const { lang, slug } = params;
+  const { lang, slug } = await params;
   const project = await getProject(slug);
   const { t } = await initTranslations(lang, [defaultNS]);
 

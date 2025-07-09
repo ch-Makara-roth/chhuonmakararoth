@@ -1,4 +1,3 @@
-
 export interface JourneyItem {
   id: string;
   date: string;
@@ -136,56 +135,64 @@ export const projectsData: Project[] = [
 ];
 
 export const contributionsData: Contribution[] = [
-  {
-    id: 'c1',
-    title: 'Performance Optimization for UI Library',
-    project: 'OpenReactUI',
-    description: 'Identified and resolved performance bottlenecks in the core rendering logic of a popular open-source React UI library, resulting in a 30% speed improvement for complex components.',
-    repoLink: '#',
-    codeSnippet: `// Before optimization
-function ExpensiveComponent({ items }) {
-  return (
-    <ul>
-      {items.map(item => (
-        <li key={item.id} style={{ color: computeStyle(item) }}>
-          {item.name}
-        </li>
-      ))}
-    </ul>
-  );
-}
+//   {
+//     id: 'c1',
+//     title: 'Performance Optimization for UI Library',
+//     project: 'OpenReactUI',
+//     description: 'Identified and resolved performance bottlenecks in the core rendering logic of a popular open-source React UI library, resulting in a 30% speed improvement for complex components.',
+//     repoLink: '#',
+//     codeSnippet: `// Before optimization
+// function ExpensiveComponent({ items }) {
+//   return (
+//     <ul>
+//       {items.map(item => (
+//         <li key={item.id} style={{ color: computeStyle(item) }}>
+//           {item.name}
+//         </li>
+//       ))}
+//     </ul>
+//   );
+// }
 
-// After optimization using React.memo and useMemo
-const OptimizedListItem = React.memo(({ item }) => {
-  const itemStyle = React.useMemo(() => computeStyle(item), [item]);
-  return <li style={{ color: itemStyle }}>{item.name}</li>;
-});
+// // After optimization using React.memo and useMemo
+// const OptimizedListItem = React.memo(({ item }) => {
+//   const itemStyle = React.useMemo(() => computeStyle(item), [item]);
+//   return <li style={{ color: itemStyle }}>{item.name}</li>;
+// });
 
-function OptimizedExpensiveComponent({ items }) {
-  return (
-    <ul>
-      {items.map(item => (
-        <OptimizedListItem key={item.id} item={item} />
-      ))}
-    </ul>
-  );
-}`,
-    hotspots: [
-      { id: 'h1', area: 'React.memo', details: 'Used React.memo to prevent unnecessary re-renders of list items.' },
-      { id: 'h2', area: 'React.useMemo', details: 'Applied useMemo to cache expensive style computations.' },
-    ],
-    dataAiHint: 'code optimization'
-  },
+// function OptimizedExpensiveComponent({ items }) {
+//   return (
+//     <ul>
+//       {items.map(item => (
+//         <OptimizedListItem key={item.id} item={item} />
+//       ))}
+//     </ul>
+//   );
+// }`,
+//     hotspots: [
+//       { id: 'h1', area: 'React.memo', details: 'Used React.memo to prevent unnecessary re-renders of list items.' },
+//       { id: 'h2', area: 'React.useMemo', details: 'Applied useMemo to cache expensive style computations.' },
+//     ],
+//     dataAiHint: 'code optimization'
+//   },
   {
     id: 'c2',
-    title: 'Added Internationalization (i18n) Support',
+    title: 'Code Editor',
     project: 'CommunityDocs Platform',
-    description: 'Led the effort to integrate internationalization (i18n) support into a documentation platform, enabling content translation into multiple languages. Implemented language switching and managed translation files.',
-    architectureImageUrl: 'https://placehold.co/700x450.png',
-    dataAiHint: 'i18n architecture',
+    description: 'Code Editor with Hotspots for code explanation and learning. It is a web-based tool that allows users to edit and learn from code snippets. It is built with React and TypeScript.',
+    // architectureImageUrl: 'https://placehold.co/700x450.png',
+    dataAiHint: 'code editor',
+    codeSnippet: ``,
     hotspots: [
-      { id: 'h3', area: 'coordinates:50,50,100,30', details: 'Language selection module.' }, // Example coordinate string: x,y,width,height
+      { id: 'h3', area: 'coordinates:50,50,100,30', details: 'Language selection dropdown UI.' },
       { id: 'h4', area: 'coordinates:200,150,150,40', details: 'Translation file loading mechanism.' },
+      { id: 'h5', area: 'languages', details: 'Array of supported languages with their codes and display names.' },
+      { id: 'h6', area: 'LanguageDetector', details: 'Auto-detects user language preference from browser settings.' },
+      { id: 'h7', area: 'resources', details: 'Translation key-value pairs for each supported language.' },
+      { id: 'h8', area: 'useTranslation', details: 'React hook to access translation functions and the i18n instance.' },
+      { id: 'h9', area: 'changeLanguage', details: 'Function to dynamically switch between languages.' },
+      { id: 'h10', area: 'currentLang', details: 'Gets the current active language object based on i18n.language.' },
+      { id: 'h11', area: 'Check', details: 'Shows a checkmark icon next to the currently selected language.' },
     ],
   },
 ];

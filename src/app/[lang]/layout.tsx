@@ -29,7 +29,7 @@ const APP_DESCRIPTION = 'Personal portfolio of Chhuon MakaraRoth, showcasing pro
 const DEFAULT_OG_IMAGE_URL = "https://placehold.co/1200x630.png?text=My+Portfolio"; // Replace this
 
 export async function generateMetadata({ params }: { params: { lang: string } }): Promise<Metadata> {
-  const lang = params.lang;
+  const { lang } = await params;
   const { t } = await initTranslations(lang, [defaultNS]);
   const siteName = t('header.appName') || APP_DEFAULT_TITLE;
   const title = `${siteName} - Portfolio`;
@@ -83,7 +83,7 @@ export default async function RootLayout({
   children: React.ReactNode;
   params: { lang: string };
 }>) {
-  const lang = params.lang;
+  const { lang } = await params;
   const { resources } = await initTranslations(lang, i18nNamespaces);
 
   // Conditional font application logic

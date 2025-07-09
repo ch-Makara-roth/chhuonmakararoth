@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 import fs from 'fs/promises';
 import path from 'path';
 import { writeFile } from 'fs/promises';
-import { put, del } from '@vercel/blob';
+// import { put, del } from '@vercel/blob';
 import { languages as i18nLanguages, defaultLocale as i18nDefaultLocale } from '@/app/i18n/settings';
 
 

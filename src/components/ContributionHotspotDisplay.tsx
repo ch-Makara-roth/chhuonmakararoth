@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { type Contribution } from '@/lib/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Info, Github } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import CodeEditor from './codeEditor';
 
 interface ContributionHotspotDisplayProps {
   contribution: Contribution;
@@ -15,92 +17,67 @@ interface ContributionHotspotDisplayProps {
 export default function ContributionHotspotDisplay({ contribution }: ContributionHotspotDisplayProps) {
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
 
-  const renderCodeSnippetWithHotspots = (snippet: string, hotspots: Contribution['hotspots']) => {
-    if (!hotspots || hotspots.length === 0) {
-      return <pre className="whitespace-pre-wrap text-sm bg-muted/50 p-4 rounded-md overflow-x-auto">{snippet}</pre>;
-    }
-
-    let result = snippet;
-    // Sort hotspots by length of area to replace longer matches first
-    const sortedHotspots = [...hotspots].sort((a, b) => b.area.length - a.area.length);
-
-    sortedHotspots.forEach(hotspot => {
-      const regex = new RegExp(`(${hotspot.area.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g');
-      result = result.replace(regex, (match) => 
-        `<mark class="bg-primary/20 text-primary font-semibold rounded px-1 cursor-pointer transition-all hover:bg-primary/40" data-hotspot-id="${hotspot.id}" data-hotspot-details="${hotspot.details}">${match}</mark>`
-      );
-    });
+  // Determine which language to use based on code snippet
+  const detectLanguage = (codeSnippet?: string) => {
+    if (!codeSnippet) return 'javascript';
     
-    return (
-      <pre
-        className="whitespace-pre-wrap text-sm bg-muted/50 p-4 rounded-md overflow-x-auto"
-        dangerouslySetInnerHTML={{ __html: result }}
-        onClick={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.tagName === 'MARK' && target.dataset.hotspotId) {
-            // Could trigger a popover or modal here, for simplicity, toggle local state
-            setActiveHotspot(target.dataset.hotspotId === activeHotspot ? null : target.dataset.hotspotId);
-          }
-        }}
-      />
-    );
+    if (codeSnippet.includes('import React') || codeSnippet.includes('function') || codeSnippet.includes('const')) {
+      return 'javascript';
+    } else if (codeSnippet.includes('System.out.println')) {
+      return 'java';
+    } else if (codeSnippet.includes('print(') || codeSnippet.includes('def ')) {
+      return 'python';
+    } else if (codeSnippet.includes('std::cout')) {
+      return 'cpp';
+    } else if (codeSnippet.includes('fmt.Println')) {
+      return 'go';
+    } else if (codeSnippet.includes('println!')) {
+      return 'rust';
+    }
+    
+    return 'javascript';
+  };
+
+  // Handle hotspot click
+  const handleHotspotClick = (hotspotId: string) => {
+    setActiveHotspot(hotspotId === activeHotspot ? null : hotspotId);
   };
 
   return (
     <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300 w-full">
       <CardHeader>
         <CardTitle className="text-xl">{contribution.title}</CardTitle>
-        <CardDescription>Project: {contribution.project}</CardDescription>
+        <CardDescription>Let's Learn</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-foreground/80 mb-4">{contribution.description}</p>
         
-        {contribution.codeSnippet && contribution.hotspots && (
-          <div className="mb-4">
-            {renderCodeSnippetWithHotspots(contribution.codeSnippet, contribution.hotspots)}
-            {contribution.hotspots.map(hotspot => (
-               activeHotspot === hotspot.id && (
-                <div key={hotspot.id} className="mt-2 p-2 bg-accent/10 border-l-4 border-accent text-accent-foreground rounded-r-md text-sm">
-                  <strong>{hotspot.area}:</strong> {hotspot.details}
-                </div>
-              )
-            ))}
-          </div>
-        )}
-
-        {contribution.architectureImageUrl && contribution.hotspots && (
-          <div className="relative mb-4" data-ai-hint={contribution.dataAiHint || "architecture diagram"}>
-            <Image 
-              src={contribution.architectureImageUrl} 
-              alt={`${contribution.title} architecture`} 
-              width={700} height={450} 
-              className="rounded-md border" 
+        <Tabs defaultValue="code" className="mb-6">
+          <TabsList className="mb-2">
+            <TabsTrigger value="code">Interactive Code</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="code" className="mt-0">
+            <CodeEditor 
+              initialLanguage={detectLanguage(contribution.codeSnippet) as any}
+              initialCode={contribution.codeSnippet || undefined}
+              height="400px"
+              hotspots={contribution.hotspots}
+              onHotspotClick={handleHotspotClick}
             />
-            {contribution.hotspots.map(hotspot => {
-              // Basic coordinate parsing: "x,y,width,height"
-              const coords = hotspot.area.startsWith('coordinates:') ? hotspot.area.substring('coordinates:'.length).split(',').map(Number) : null;
-              if (!coords || coords.length !== 4) return null;
-              const [x, y, w, h] = coords;
-
-              return (
-                <Popover key={hotspot.id}>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="absolute border-2 border-dashed border-accent rounded bg-accent/20 hover:bg-accent/40 transition-all animate-pulse"
-                      style={{ left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` }}
-                      aria-label={`Info about ${hotspot.details.substring(0,20)}...`}
-                    >
-                      <Info className="w-4 h-4 text-accent-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 text-sm">
-                    <p><strong>Highlight:</strong> {hotspot.details}</p>
-                  </PopoverContent>
-                </Popover>
-              );
-            })}
-          </div>
-        )}
+            {activeHotspot && contribution.hotspots && (
+              <div className="mt-2 p-2 bg-accent/10 border-l-4 border-accent text-accent-foreground rounded-r-md text-sm">
+                {contribution.hotspots.map(hotspot => (
+                  activeHotspot === hotspot.id && (
+                    <div key={hotspot.id}>
+                      <strong>{hotspot.area}:</strong> {hotspot.details}
+                    </div>
+                  )
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {contribution.repoLink && (
           <Button asChild variant="outline" size="sm">
